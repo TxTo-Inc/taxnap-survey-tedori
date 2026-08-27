@@ -104,7 +104,34 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .est-box b{color:var(--brand-dark)}
 .est-link{display:inline-block;margin-top:9px;font-size:.8rem;color:var(--brand-dark);font-weight:700;text-decoration:underline;cursor:pointer;background:none;border:none;font-family:inherit;padding:0}
 
-/* 内訳テーブル */
+
+/* お金の流れ（3ブロック） */
+.fb{margin-bottom:14px}
+.fb:last-of-type{margin-bottom:0}
+.fb-head{font-size:.78rem;font-weight:700;color:var(--text-sub);letter-spacing:.02em;margin-bottom:7px}
+.fb-box{background:#fafbfa;border:1px solid #eef1f0;border-radius:12px;padding:4px 13px}
+.fb-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f0f2f1;font-size:.9rem}
+.fb-row:last-child{border-bottom:none}
+.fb-row .v{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.fb-row.sum{border-top:1.5px solid #e3e7e5;border-bottom:none;margin-top:-1px}
+.fb-row.sum .k{font-weight:700}
+.fb-row.sum .v{font-size:1rem}
+.fb-row.minus .v{color:#b4453c}
+/* 手取り（結び） */
+.fb-final{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--brand-light);border:2px solid var(--brand);border-radius:14px;padding:14px 16px}
+.fb-final .k{font-size:.95rem;font-weight:700;color:var(--brand-dark)}
+.fb-final .v{font-size:1.35rem;font-weight:900;color:#15803d;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* 青色控除の参考値 */
+.fb-note{display:flex;gap:8px;align-items:flex-start;font-size:.78rem;color:#3f7357;background:#f2fbf6;border:1px solid #d3ecdf;border-radius:10px;padding:9px 11px;margin-top:8px;line-height:1.6}
+.fb-note b{color:#15803d}
+/* 詳細トグル */
+.fb-toggle{width:100%;background:none;border:none;font-family:inherit;font-size:.8rem;color:var(--text-sub);padding:8px 0 0;cursor:pointer;text-align:left;text-decoration:underline}
+.fb-detail{display:none;margin-top:6px;padding-left:11px;border-left:2px solid #eef1f0}
+.fb-detail.open{display:block}
+.fb-drow{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:.82rem;color:var(--text-sub)}
+.fb-drow .v{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* 旧: 内訳テーブル */
 .bd{width:100%;border-collapse:collapse;font-size:.88rem}
 .bd td{padding:9px 0;border-bottom:1px solid #f0f0f0}
 .bd td:last-child{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
@@ -363,8 +390,8 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     </div>
 
     <div class="card">
-      <div class="card-title">📋 内訳（いまの申告方法）</div>
-      <table class="bd" id="bdTable"></table>
+      <div class="card-title">📋 お金の流れ（いまの申告方法）</div>
+      <div id="bdFlow"></div>
     </div>
 
     <div class="app-cta">
@@ -906,19 +933,57 @@ function renderResult() {
     renderChart(mode, est, now, baseline, after);
   }
 
-  // ---- 内訳 ----
-  const rows = [
-    ['売上', yen(uriage) + ' 円'],
-    ['経費', '− ' + yen(keihi) + ' 円'],
-    ['青色申告特別控除', now.aoiro > 0 ? '− ' + yen(now.aoiro) + ' 円' : 'なし'],
-    ['所得税・復興特別所得税', '− ' + yen(now.shotokuzei) + ' 円'],
-    ['住民税', '− ' + yen(now.juminzei) + ' 円'],
-    ['個人事業税', now.jigyozei > 0 ? '− ' + yen(now.jigyozei) + ' 円' : '0 円'],
-    [shaho ? '社会保険料（概算）' : '国民健康保険＋国民年金', '− ' + yen(now.shaho) + ' 円']
-  ];
-  document.getElementById('bdTable').innerHTML =
-    rows.map(r => `<tr class="minus"><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('') +
-    `<tr class="total"><td>手取り</td><td>${yen(now.tedori)} 円</td></tr>`;
+  // ---- お金の流れ（3ブロック） ----
+  // 青色申告特別控除は「出ていくお金」ではなく課税所得を減らすだけなので、
+  // 引き算の列には入れず、事業のもうけブロックの参考値として併記する。
+  // （以前は税金と同じ「−」列に並べていたため、縦の引き算が合わなかった）
+  const zei   = now.shotokuzei + now.juminzei + now.jigyozei;   // 税金の合計
+  const hoken = now.shaho;                                      // 社会保険料
+  const hokenLabel = shaho ? '社会保険料（概算）' : '国民健康保険＋国民年金';
+
+  document.getElementById('bdFlow').innerHTML = `
+    <div class="fb">
+      <div class="fb-head">① 事業のもうけ</div>
+      <div class="fb-box">
+        <div class="fb-row"><span class="k">売上</span><span class="v">${yen(uriage)} 円</span></div>
+        <div class="fb-row minus"><span class="k">経費</span><span class="v">− ${yen(keihi)} 円</span></div>
+        <div class="fb-row sum"><span class="k">事業所得</span><span class="v">${yen(now.jigyo)} 円</span></div>
+      </div>
+      ${now.aoiro > 0 ? `<div class="fb-note"><span>✓</span><div>
+        青色申告特別控除 <b>${yen(now.aoiro)} 円</b> で課税の対象が減り、
+        下の税金・保険料が安くなっています。
+      </div></div>` : ''}
+    </div>
+
+    <div class="fb">
+      <div class="fb-head">② ここから差し引かれるもの</div>
+      <div class="fb-box">
+        <div class="fb-row minus"><span class="k">税金</span><span class="v">− ${yen(zei)} 円</span></div>
+        <div class="fb-row minus"><span class="k">${hokenLabel}</span><span class="v">− ${yen(hoken)} 円</span></div>
+        <div class="fb-row sum minus"><span class="k">合計</span><span class="v">− ${yen(zei + hoken)} 円</span></div>
+      </div>
+      <button class="fb-toggle" id="bdToggle" type="button">▸ 税金・保険料の内訳を見る</button>
+      <div class="fb-detail" id="bdDetail">
+        <div class="fb-drow"><span>所得税・復興特別所得税</span><span class="v">${yen(now.shotokuzei)} 円</span></div>
+        <div class="fb-drow"><span>住民税</span><span class="v">${yen(now.juminzei)} 円</span></div>
+        <div class="fb-drow"><span>個人事業税</span><span class="v">${yen(now.jigyozei)} 円</span></div>
+        <div class="fb-drow"><span>${hokenLabel}</span><span class="v">${yen(hoken)} 円</span></div>
+      </div>
+    </div>
+
+    <div class="fb-final">
+      <span class="k">③ 手取り</span>
+      <span class="v">${yen(now.tedori)} 円</span>
+    </div>
+  `;
+
+  // 税金の内訳トグル
+  const tg = document.getElementById('bdToggle');
+  tg.addEventListener('click', () => {
+    const d = document.getElementById('bdDetail');
+    const open = d.classList.toggle('open');
+    tg.textContent = (open ? '▾ ' : '▸ ') + '税金・保険料の内訳を見る';
+  });
 
   // ---- 注記 ----
   const kokuhoNote = shaho

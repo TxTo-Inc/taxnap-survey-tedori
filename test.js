@@ -55,7 +55,7 @@ function run(picks, uriageMan, keihiMan) {
     warn: d.getElementById('warnSlot').textContent.replace(/\s+/g,' ').trim(),
     estBox: d.getElementById('estBox').textContent.replace(/\s+/g,' ').trim(),
     resSub: d.getElementById('resSub').textContent.replace(/\s+/g,' ').trim(),
-    bdRows: [...d.querySelectorAll('#bdTable tr')].map(t=>t.textContent.replace(/\s+/g,' ').trim()),
+    bdRows: [...d.querySelectorAll('#bdFlow .fb-row, #bdFlow .fb-final, #bdFlow .fb-drow')].map(t=>t.textContent.replace(/\s+/g,' ').trim()),
     gates: {next4, next5, submitDisabled}
   };
 }
