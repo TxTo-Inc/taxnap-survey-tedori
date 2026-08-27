@@ -67,6 +67,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .money-wrap:focus-within{border-color:var(--brand)}
 .money-input{flex:1;border:none;font-size:1.5rem;font-weight:700;font-family:inherit;text-align:right;background:none;color:var(--text);min-width:0}
 .money-input:focus{outline:none}
+.money-input::placeholder{color:#c8cdd0;font-weight:400}
 .money-unit{font-size:1rem;font-weight:700;color:var(--text-sub);flex-shrink:0}
 .money-yen{font-size:.8rem;color:var(--text-sub);text-align:right;margin-top:8px;min-height:1.2em}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
@@ -110,7 +111,32 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .bd .total td:last-child{color:var(--brand-dark);font-size:1.05rem}
 .bd .minus td:last-child{color:var(--text-sub)}
 
-/* グラフ（2本棒） */
+/* 差額ヒーロー（結果1画面目で最初に目に入る） */
+.delta-hero{background:linear-gradient(135deg,#e8f8ef,#d2f0e0);border:2.5px solid var(--brand);border-radius:20px;padding:20px 18px;text-align:center;margin-bottom:14px;box-shadow:0 3px 16px rgba(39,186,116,.18)}
+.delta-hero-lead{font-size:1rem;font-weight:700;color:var(--brand-dark);margin-bottom:4px}
+.delta-hero-amount{font-size:2.35rem;font-weight:900;color:#15803d;line-height:1.15;letter-spacing:-.02em;white-space:nowrap}
+.delta-hero-note{font-size:.8rem;color:#3f7357;margin-top:8px;line-height:1.65}
+
+/* グラフ（軸つき・拡大スケール。画像3枚目に準拠） */
+.chart2{position:relative;height:236px;margin:6px 0 0;padding:14px 10px 0 54px;overflow:hidden}
+.chart2-grid{position:absolute;top:14px;right:10px;bottom:0;left:54px}
+.c2line{position:absolute;left:0;right:0;border-top:1px solid #eef1f0}
+.c2tick{position:absolute;right:calc(100% + 8px);transform:translateY(-50%);font-size:.68rem;color:#a8aeb2;white-space:nowrap}
+.chart2-bars{position:relative;height:100%;display:flex;align-items:flex-end;justify-content:space-around;gap:20px}
+.c2col{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;width:96px;height:100%}
+.c2val{font-size:1rem;font-weight:800;margin-bottom:6px;white-space:nowrap}
+.c2col:first-child .c2val{color:#5f6b64}
+.c2col:last-child .c2val{color:#15803d}
+.c2bar{width:100%;border-radius:4px 4px 0 0;transition:height .95s cubic-bezier(.2,.8,.2,1);min-height:3px}
+.c2bar.now{background:#b7e3ca}
+.c2bar.after{background:#2f7d4f}
+.chart2-arrow{position:absolute;top:14px;right:10px;bottom:0;left:54px;pointer-events:none}
+.chart2-labels{display:flex;justify-content:space-around;gap:20px;padding:0 10px 0 54px;margin-top:10px}
+.c2label{width:104px;text-align:center;font-size:.74rem;color:var(--text-sub);line-height:1.5}
+.c2label b{display:block;color:var(--text);font-weight:700;font-size:.85rem}
+.chart2-caveat{font-size:.7rem;color:#a0a6aa;text-align:center;margin-top:12px;line-height:1.6}
+
+/* 旧: グラフ（2本棒） */
 .chart{display:flex;align-items:flex-end;justify-content:center;gap:26px;height:210px;margin:8px 0 4px}
 .bar-col{display:flex;flex-direction:column;align-items:center;flex:1;max-width:120px;height:100%;justify-content:flex-end}
 .bar-val{font-size:1rem;font-weight:800;margin-bottom:7px;white-space:nowrap}
@@ -225,9 +251,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div class="slide" id="s4">
     <div class="q-number">Q4</div>
     <div class="q-title">1年間の売上はどのくらいですか？</div>
-    <div class="q-subtitle">おおよその金額でOK（入金の合計）</div>
+    <div class="q-subtitle">おおよその金額でOK（入金の合計）。<b>直接入力もできます</b></div>
     <div class="money-wrap">
-      <input type="text" inputmode="numeric" class="money-input" id="uriage" placeholder="500" autocomplete="off">
+      <input type="text" inputmode="numeric" class="money-input" id="uriage" placeholder="例 500" autocomplete="off">
       <span class="money-unit">万円</span>
     </div>
     <div class="money-yen" id="uriageYen"></div>
@@ -241,9 +267,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <div class="q-number">Q5</div>
     <div class="q-title">1年間の経費はどのくらいですか？</div>
     <div class="q-subtitle">仕事のために使ったお金の合計</div>
-    <div class="q-hint">💡 わからなければ下のボタンで「売上の◯％」を選んでください</div>
+    <div class="q-hint">💡 金額は直接入力できます。わからなければ下のボタンで「売上の◯％」を選んでください</div>
     <div class="money-wrap">
-      <input type="text" inputmode="numeric" class="money-input" id="keihi" placeholder="200" autocomplete="off">
+      <input type="text" inputmode="numeric" class="money-input" id="keihi" placeholder="例 200" autocomplete="off">
       <span class="money-unit">万円</span>
     </div>
     <div class="money-yen" id="keihiYen"></div>
@@ -286,39 +312,52 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 
   <!-- ===== Slide 9: 結果 ===== -->
   <div class="slide" id="s9">
+
+    <!-- ① 差額ヒーロー（白色・簡易簿記のとき最上部に出す。1画面目で目に入る要素） -->
+    <div class="delta-hero" id="deltaHero" style="display:none">
+      <div class="delta-hero-lead" id="deltaLead">手取りはこれだけ増えます</div>
+      <div class="delta-hero-amount" id="deltaAmount">—</div>
+      <div class="delta-hero-note" id="deltaNote">売上・経費が同じでも、申告方法を変えるだけで増えます</div>
+    </div>
+
+    <!-- ② グラフ（画像3枚目に準じた 軸つき・差分を強調したスケール） -->
+    <div class="card" id="chartCard" style="display:none">
+      <div class="card-title" id="chartTitle">📈 青色申告に切り替えると</div>
+      <div class="chart2" id="chart2">
+        <div class="chart2-grid" id="chart2Grid"></div>
+        <div class="chart2-bars">
+          <div class="c2col">
+            <div class="c2val" id="barNowVal">—</div>
+            <div class="c2bar now" id="barNow"></div>
+          </div>
+          <div class="c2col">
+            <div class="c2val" id="barAfterVal">—</div>
+            <div class="c2bar after" id="barAfter"></div>
+          </div>
+        </div>
+        <svg class="chart2-arrow" id="chart2Arrow" aria-hidden="true"></svg>
+        <div class="chart2-brace" id="chart2Brace"></div>
+      </div>
+      <div class="chart2-labels">
+        <div class="c2label" id="barNowLabel"><b>いま</b></div>
+        <div class="c2label" id="barAfterLabel"><b>青色申告</b></div>
+      </div>
+      <div class="chart2-caveat">※ 差がわかりやすいよう、縦軸は0円からではなく拡大して表示しています</div>
+    </div>
+
+    <!-- ③ いまの手取り -->
     <div class="result-hero">
       <div class="result-kicker" id="resKicker">あなたの手取り</div>
-      <div class="result-label" id="resLabel">いまの申告方法での手取り（年間）</div>
+      <div class="result-label" id="resLabel">いまの申告方法での手取り（2026年分・年間）</div>
       <div class="result-amount" id="resAmount">—</div>
       <div class="result-sub" id="resSub"></div>
     </div>
 
+    <div id="warnSlot"></div>
+
     <div class="card">
       <div class="card-title">🔍 ご回答からの推定</div>
       <div class="est-box" id="estBox"></div>
-    </div>
-
-    <div id="warnSlot"></div>
-
-    <div class="card" id="chartCard" style="display:none">
-      <div class="card-title" id="chartTitle">📈 青色申告に切り替えると</div>
-      <div class="chart">
-        <div class="bar-col">
-          <div class="bar-val" id="barNowVal">—</div>
-          <div class="bar now" id="barNow" style="height:0"></div>
-          <div class="bar-label" id="barNowLabel"><b>いま</b></div>
-        </div>
-        <div class="bar-col">
-          <div class="bar-val" id="barAfterVal">—</div>
-          <div class="bar after" id="barAfter" style="height:0"></div>
-          <div class="bar-label" id="barAfterLabel"><b>2027年<br>青色申告</b></div>
-        </div>
-      </div>
-      <div class="delta-badge">
-        <div class="delta-lead" id="deltaLead">手取りはこれだけ増えます</div>
-        <div class="delta-amount" id="deltaAmount">—</div>
-        <div class="delta-note" id="deltaNote"></div>
-      </div>
     </div>
 
     <div class="card">
@@ -334,8 +373,6 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <div class="disclaimer" id="disclaimer"></div>
     <button class="btn-back" onclick="restart()">↻ 条件を変えて試算する</button>
   </div>
-
-</div>
 
 <div class="loading" id="loading"><div class="spinner"></div><div style="font-size:.85rem;color:#666">計算中…</div></div>
 <script>
@@ -547,7 +584,7 @@ const QUESTIONS = {
 };
 
 // 金額入力のクイック選択チップ
-const URIAGE_CHIPS = [200, 300, 500, 700, 1000];
+const URIAGE_CHIPS = [200, 300, 400, 500, 700, 1000];
 const KEIHI_RATIOS = [
   {label:'売上の10%', r:0.10}, {label:'20%', r:0.20},
   {label:'30%', r:0.30}, {label:'40%', r:0.40}, {label:'50%', r:0.50}
@@ -794,6 +831,7 @@ function renderResult() {
   const age40  = answers.q6_age === '40歳以上';
   const shaho  = answers.q7_insurance === '家族の社会保険の扶養に入っている';
   const est    = estimate();
+  document.getElementById('deltaHero').style.display = 'none';   // 再試算時に前回表示を残さない
 
   // いまの手取り（2026年分＝今回の申告）
   const kojoNow = KOJO_TABLE[est.kicho][2026];
@@ -839,6 +877,8 @@ function renderResult() {
   const noBenefit = (after.tedori - baseline.tedori) <= 0;
   if (noBenefit) {
     document.getElementById('chartCard').style.display = 'none';
+    document.getElementById('deltaHero').style.display = 'none';
+    chartState = null;
     document.getElementById('warnSlot').innerHTML =
       `<div class="warn-box">
         <div class="warn-title">ℹ️ いまの所得では、税額の差が出ません</div>
@@ -954,22 +994,74 @@ function renderChart(mode, est, now, baseline, after) {
       'タックスナップは優良な電子帳簿の<br>要件に対応予定です';
   }
 
-  document.getElementById('barNowVal').textContent   = man(baseline.tedori) + '万円';
-  document.getElementById('barAfterVal').textContent = man(after.tedori) + '万円';
-  chartState = { now: baseline.tedori, after: after.tedori };
+  document.getElementById('barNowVal').textContent   = '約' + Math.round(baseline.tedori / 10000) + '万円';
+  document.getElementById('barAfterVal').textContent = '約' + Math.round(after.tedori / 10000) + '万円';
+  // 差額ヒーローを表示（結果1画面目で最初に目に入る要素）
+  document.getElementById('deltaHero').style.display = 'block';
+  chartState = { now: baseline.tedori, after: after.tedori, delta };
 }
 
-// 棒の高さは 0 からではなく「小さい方を基準」にすると差が誇張されるため、
-// 0 基準の実比率で描く（差が小さく見えても事実に忠実にする）
+/**
+ * グラフ描画（画像3枚目に準拠）
+ * 縦軸を 0 からではなく「2本の値をはさむ範囲」に拡大して、差分を見えるようにする。
+ * 0基準だと差が1〜2%にしか見えず、増加が伝わらないため。
+ * ただし誇張表現になるので、軸の目盛りと「拡大表示」の注記を必ず併記する。
+ */
 function animateChart() {
   if (!chartState) return;
-  const max = Math.max(chartState.now, chartState.after, 1);
-  const H = 150;   // 最大バー高さ px
-  const h = v => Math.max(4, Math.round(Math.max(0, v) / max * H));
+  const { now, after, delta } = chartState;
+
+  // --- 軸の範囲を決める（きりのよい10万円刻みで両側に余白を作る） ---
+  const STEP = 100000;                                  // 目盛り間隔 10万円
+  const lo = Math.floor(Math.min(now, after) / STEP) * STEP - STEP;
+  const hi = Math.ceil(Math.max(now, after) / STEP) * STEP + STEP;
+  const span = Math.max(hi - lo, STEP);
+
+  const grid  = document.getElementById('chart2Grid');
+  const chart = document.getElementById('chart2');
+  const H = chart.clientHeight - 14;                    // padding-top 分を引く
+  const y = v => (1 - (v - lo) / span) * H;             // 値 → px（上が0）
+
+  // --- 目盛り線とラベル ---
+  grid.innerHTML = '';
+  for (let v = lo; v <= hi + 1; v += STEP) {
+    const line = document.createElement('div');
+    line.className = 'c2line';
+    line.style.top = y(v) + 'px';
+    const tick = document.createElement('span');
+    tick.className = 'c2tick';
+    tick.style.top = y(v) + 'px';
+    tick.textContent = Math.round(v / 10000) + '万円';
+    line.appendChild(tick);
+    grid.appendChild(line);
+  }
+
+  // --- 棒の高さ（軸下端 lo からの高さ） ---
+  const hNow   = Math.max(3, H - y(now));
+  const hAfter = Math.max(3, H - y(after));
   requestAnimationFrame(() => {
-    document.getElementById('barNow').style.height   = h(chartState.now) + 'px';
-    document.getElementById('barAfter').style.height = h(chartState.after) + 'px';
+    document.getElementById('barNow').style.height   = hNow + 'px';
+    document.getElementById('barAfter').style.height = hAfter + 'px';
   });
+
+  // --- 矢印と差額ブレース（棒の頂点をつなぐ） ---
+  const svg = document.getElementById('chart2Arrow');
+  const w = grid.clientWidth;
+  if (!w || delta <= 0) { svg.innerHTML = ''; return; }
+
+  // 棒の中心x（justify-content:space-around・幅78pxの2カラム）
+  const x1 = w * 0.25, x2 = w * 0.75;   // 棒の中心x（space-around の2カラム）
+  const yTop1 = y(now), yTop2 = y(after);
+
+  svg.setAttribute('viewBox', `0 0 ${w} ${H}`);
+  svg.innerHTML = `
+    <defs>
+      <marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3"
+              orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#3faa72"/></marker>
+    </defs>
+    <line x1="${x1 + 34}" y1="${yTop1 - 6}" x2="${x2 - 30}" y2="${yTop2 + 10}"
+          stroke="#3faa72" stroke-width="2" marker-end="url(#ah)"/>
+  `;
 }
 </script>
 </body>
