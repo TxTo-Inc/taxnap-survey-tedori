@@ -140,6 +140,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .bd .total td:last-child{color:var(--brand-dark);font-size:1.05rem}
 .bd .minus td:last-child{color:var(--text-sub)}
 
+/* 「その他」選択時だけ開く入力欄 */
+.other-wrap{margin-top:10px;display:none}
+.other-wrap.show{display:block}
+
 /* 自由記述（MGR感想で使用） */
 .text-input{width:100%;padding:12px 14px;border:2px solid #e5e7eb;border-radius:var(--radius);font-size:.95rem;font-family:inherit;background:#fff;transition:border-color .2s;line-height:1.6}
 .text-input:focus{outline:none;border-color:var(--brand)}
@@ -423,17 +427,17 @@ textarea.text-input{resize:vertical;min-height:76px;display:block}
       <div class="card-title">💬 マネージャーの皆さまへ</div>
       <p class="mgr-lead">後日、美容師の皆さまにこのアンケートをご案内する予定です。<br>お気づきの点をお聞かせください。</p>
 
-      <div class="mgr-q">Q1. 美容師の方は、無理なく回答できそうですか？</div>
+      <div class="mgr-q">Q1. この内容を、美容師の皆さまにご案内いただけそうですか？</div>
       <div class="options mgr-opts" id="fbOpts1"></div>
 
-      <div class="mgr-q">Q2. この内容は、美容師の方の関心を引けそうですか？</div>
+      <div class="mgr-q">Q2. 分かりにくかった点があれば<span class="mgr-opt-tag">複数選択可・任意</span></div>
       <div class="options mgr-opts" id="fbOpts2"></div>
+      <div class="other-wrap" id="fbOtherWrap">
+        <textarea class="text-input" id="fbOther" rows="2" placeholder="具体的にお聞かせください"></textarea>
+      </div>
 
-      <div class="mgr-q">Q3. 分かりにくかった点・追加してほしい設問があれば<span class="mgr-opt-tag">任意</span></div>
-      <textarea class="text-input" id="fbFree" rows="3" placeholder="例）経費の入力がむずかしそう／店販の扱いを聞きたい"></textarea>
-
-      <div class="mgr-q">Q4. 説明会全体のご感想<span class="mgr-opt-tag">任意</span></div>
-      <textarea class="text-input" id="fbImpression" rows="3" placeholder="ご自由にご記入ください"></textarea>
+      <div class="mgr-q">Q3. 本日の説明会の満足度</div>
+      <div class="options mgr-opts" id="fbOpts3"></div>
 
       <button class="btn-next" id="fbSubmit" disabled onclick="submitFeedback()">感想を送信する</button>
       <div class="mgr-done" id="fbDone" style="display:none">✅ ありがとうございました。送信しました</div>
@@ -680,20 +684,37 @@ const QUESTIONS = {
 };
 
 // MGR向け感想の選択肢（?r=mgr のときだけ使う）
+// Q1は「理解できたか × 案内したいか」の2軸を1問に畳んでいる。
+// どちらに問題があるかで打ち手が変わるため、選択肢側で軸を切り分けている
+//   ② = 提案内容の見直し / ③④ = 説明のしかたの見直し
 const FEEDBACK = {
-  fb_answerable: { container:'fbOpts1', opts:[
-    {emoji:'🙆', text:'問題なく回答できそう'},
-    {emoji:'🤔', text:'一部むずかしそう'},
-    {emoji:'🙅', text:'むずかしそう'}
+  fb_recommend: { container:'fbOpts1', opts:[
+    {emoji:'🙆', text:'内容を理解できた。積極的に案内したい'},
+    {emoji:'🤔', text:'内容は理解できたが、案内は難しそう',
+                 label:'内容は理解できたが、案内は難しそう', sub:'美容師には響かなそう／伝える自信がない'},
+    {emoji:'💭', text:'案内したい気持ちはあるが、内容をあまり理解できなかった'},
+    {emoji:'😥', text:'今回の説明だけでは、あまり理解できなかった'}
   ]},
-  fb_interest: { container:'fbOpts2', opts:[
-    {emoji:'🔥', text:'とても引けそう'},
-    {emoji:'🙆', text:'まあ引けそう'},
-    {emoji:'😐', text:'あまり引けなさそう'}
+  // 複数選択。該当なしは排他選択肢にして「その他」と同時に選ばれないようにする
+  fb_unclear: { container:'fbOpts2', multi:true, opts:[
+    {emoji:'💰', text:'売上・経費の入力'},
+    {emoji:'📗', text:'白色と青色のちがい'},
+    {emoji:'📅', text:'2027年に控除が変わる話'},
+    {emoji:'🧮', text:'手取りの計算・内訳'},
+    {emoji:'📱', text:'e-Tax・複式簿記などの用語'},
+    {emoji:'✏️', text:'その他', isOther:true},
+    {emoji:'✅', text:'特になし', exclusive:true}
+  ]},
+  fb_satisfaction: { container:'fbOpts3', opts:[
+    {emoji:'😄', text:'とても満足'},
+    {emoji:'🙂', text:'満足'},
+    {emoji:'😐', text:'ふつう'},
+    {emoji:'😕', text:'やや不満'},
+    {emoji:'😞', text:'不満'}
   ]}
 };
 
-// 金額入力のクイック選択チップ
+// 金額入力のクイック選択チップ// 金額入力のクイック選択チップ
 const URIAGE_CHIPS = [200, 300, 400, 500, 700, 1000];
 const KEIHI_RATIOS = [
   {label:'売上の10%', r:0.10}, {label:'20%', r:0.20},
@@ -755,22 +776,59 @@ function buildFeedbackOptions(key, q) {
   q.opts.forEach(opt => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'opt-btn';
+    btn.className = 'opt-btn' + (q.multi ? ' multi' : '');
     btn.dataset.value = opt.text;
+    if (opt.isOther)   btn.dataset.isOther = '1';
+    if (opt.exclusive) btn.dataset.exclusive = '1';
     btn.innerHTML =
       `<span class="opt-emoji">${opt.emoji}</span>` +
-      `<span class="opt-label">${opt.text}</span>` +
+      `<span class="opt-label">${opt.label || opt.text}` +
+        (opt.sub ? `<span class="opt-sub">${opt.sub}</span>` : '') +
+      `</span>` +
       `<span class="opt-check"></span>`;
     btn.addEventListener('click', () => {
-      wrap.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      feedback[key] = opt.text;
-      // Q1・Q2 の両方が選ばれたら送信可能にする（自由記述は任意）
-      document.getElementById('fbSubmit').disabled =
-        !(feedback.fb_answerable && feedback.fb_interest);
+      if (q.multi) toggleFeedbackMulti(key, q, wrap, btn, opt);
+      else {
+        wrap.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        feedback[key] = opt.text;
+      }
+      refreshFeedbackState();
     });
     wrap.appendChild(btn);
   });
+}
+
+function toggleFeedbackMulti(key, q, wrap, btn, opt) {
+  if (!Array.isArray(feedback[key])) feedback[key] = [];
+  const willSelect = !btn.classList.contains('selected');
+
+  if (willSelect && opt.exclusive) {
+    // 「特になし」を選んだら他を全部外す
+    wrap.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+    feedback[key] = [];
+  } else if (willSelect) {
+    // 通常項目を選んだら「特になし」を外す
+    wrap.querySelectorAll('.opt-btn[data-exclusive="1"]').forEach(b => {
+      b.classList.remove('selected');
+      feedback[key] = feedback[key].filter(v => v !== b.dataset.value);
+    });
+  }
+  btn.classList.toggle('selected', willSelect);
+  if (willSelect) feedback[key].push(opt.text);
+  else feedback[key] = feedback[key].filter(v => v !== opt.text);
+
+  // 「その他」が選ばれているときだけ自由記述を出す
+  const otherOn = !!wrap.querySelector('.opt-btn[data-is-other="1"].selected');
+  document.getElementById('fbOtherWrap').classList.toggle('show', otherOn);
+  // 「その他」を外したら記述も消す（選択されていないのに本文だけ残るのを防ぐ）
+  if (!otherOn) document.getElementById('fbOther').value = '';
+}
+
+// Q1（案内できそうか）と Q3（満足度）が選ばれたら送信可能にする
+function refreshFeedbackState() {
+  document.getElementById('fbSubmit').disabled =
+    !(feedback.fb_recommend && feedback.fb_satisfaction);
 }
 
 // 感想は本編とは別レコードで送る（試算の回答は結果表示時に送信済みのため）
@@ -785,10 +843,10 @@ function submitFeedback() {
     company_id: COMPANY_ID,
     role: 'マネージャー',
     email: emailValue(),
-    fb_answerable: feedback.fb_answerable || '',
-    fb_interest:   feedback.fb_interest || '',
-    fb_free:       document.getElementById('fbFree').value.trim(),
-    fb_impression: document.getElementById('fbImpression').value.trim(),
+    fb_recommend:    feedback.fb_recommend || '',
+    fb_unclear:      (feedback.fb_unclear || []).join(', '),
+    fb_unclear_free: document.getElementById('fbOther').value.trim(),
+    fb_satisfaction: feedback.fb_satisfaction || '',
     user_agent: navigator.userAgent
   };
   fetch(GAS_URL, {
