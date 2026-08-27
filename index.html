@@ -140,6 +140,20 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .bd .total td:last-child{color:var(--brand-dark);font-size:1.05rem}
 .bd .minus td:last-child{color:var(--text-sub)}
 
+/* 自由記述（MGR感想で使用） */
+.text-input{width:100%;padding:12px 14px;border:2px solid #e5e7eb;border-radius:var(--radius);font-size:.95rem;font-family:inherit;background:#fff;transition:border-color .2s;line-height:1.6}
+.text-input:focus{outline:none;border-color:var(--brand)}
+textarea.text-input{resize:vertical;min-height:76px;display:block}
+
+/* MGR向け感想セクション */
+.mgr-fb{border:2px solid var(--brand);margin-top:16px}
+.mgr-lead{font-size:.85rem;color:var(--text-sub);line-height:1.75;margin-bottom:16px}
+.mgr-q{font-size:.9rem;font-weight:700;margin:16px 0 9px;line-height:1.6}
+.mgr-q:first-of-type{margin-top:0}
+.mgr-opt-tag{display:inline-block;font-size:.68rem;font-weight:700;color:var(--text-sub);background:#eceff0;padding:2px 7px;border-radius:4px;margin-left:6px;vertical-align:middle}
+.mgr-opts .opt-btn{padding:11px 14px;font-size:.88rem}
+.mgr-done{text-align:center;font-size:.9rem;font-weight:700;color:var(--brand-dark);padding:14px;background:var(--brand-light);border-radius:12px;margin-top:14px}
+
 /* 差額ヒーロー（結果1画面目で最初に目に入る） */
 .delta-hero{background:linear-gradient(135deg,#e8f8ef,#d2f0e0);border:2.5px solid var(--brand);border-radius:20px;padding:20px 18px;text-align:center;margin-bottom:14px;box-shadow:0 3px 16px rgba(39,186,116,.18)}
 .delta-hero-lead{font-size:1rem;font-weight:700;color:var(--brand-dark);margin-bottom:4px}
@@ -403,6 +417,28 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     </div>
 
     <div class="disclaimer" id="disclaimer"></div>
+
+    <!-- MGR向け感想（?r=mgr のときだけ表示）。試算を体験した直後に聞く -->
+    <div class="card mgr-fb" id="mgrFb" style="display:none">
+      <div class="card-title">💬 マネージャーの皆さまへ</div>
+      <p class="mgr-lead">後日、美容師の皆さまにこのアンケートをご案内する予定です。<br>お気づきの点をお聞かせください。</p>
+
+      <div class="mgr-q">Q1. 美容師の方は、無理なく回答できそうですか？</div>
+      <div class="options mgr-opts" id="fbOpts1"></div>
+
+      <div class="mgr-q">Q2. この内容は、美容師の方の関心を引けそうですか？</div>
+      <div class="options mgr-opts" id="fbOpts2"></div>
+
+      <div class="mgr-q">Q3. 分かりにくかった点・追加してほしい設問があれば<span class="mgr-opt-tag">任意</span></div>
+      <textarea class="text-input" id="fbFree" rows="3" placeholder="例）経費の入力がむずかしそう／店販の扱いを聞きたい"></textarea>
+
+      <div class="mgr-q">Q4. 説明会全体のご感想<span class="mgr-opt-tag">任意</span></div>
+      <textarea class="text-input" id="fbImpression" rows="3" placeholder="ご自由にご記入ください"></textarea>
+
+      <button class="btn-next" id="fbSubmit" disabled onclick="submitFeedback()">感想を送信する</button>
+      <div class="mgr-done" id="fbDone" style="display:none">✅ ありがとうございました。送信しました</div>
+    </div>
+
     <button class="btn-back" onclick="restart()">↻ 条件を変えて試算する</button>
   </div>
 
@@ -413,6 +449,28 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
    ============================================================ */
 const GAS_URL = 'https://script.google.com/macros/s/PASTE_YOUR_DEPLOY_ID/exec';
 const POST_TOKEN = 'PASTE_YOUR_TOKEN';
+
+/* ============================================================
+   配布先の識別（URLパラメータ）
+   ------------------------------------------------------------
+   ?c=<会社コード>&r=<対象者>  例: ?c=eclart&r=mgr
+     c … 提携先の会社コード。未指定なら 'direct'（自社直配布）
+     r … 'mgr'（マネージャー向け）/ 'staff'（スタッフ向け・既定）
+   会社名を回答者に入力させると表記揺れ（ECLART/エクラート/株式会社〜）が
+   出て集計時に名寄せが要るため、既知の情報はURLで渡す。
+   新しい提携先は COMPANIES に1行足すだけで増やせる（HTMLの複製はしない）。
+   ============================================================ */
+const COMPANIES = {
+  eclart:  '株式会社ECLART',
+  gotoday: 'GO TODAY',
+  lispo:   'LISPO',
+  direct:  '直接配布'
+};
+
+const params    = new URLSearchParams(location.search);
+const COMPANY_ID = (params.get('c') || 'direct').toLowerCase();
+const COMPANY    = COMPANIES[COMPANY_ID] || COMPANY_ID;   // 未登録コードもそのまま記録
+const IS_MGR     = (params.get('r') || '').toLowerCase() === 'mgr';
 
 /* ============================================================
    税額計算エンジン
@@ -621,6 +679,20 @@ const QUESTIONS = {
   ]}
 };
 
+// MGR向け感想の選択肢（?r=mgr のときだけ使う）
+const FEEDBACK = {
+  fb_answerable: { container:'fbOpts1', opts:[
+    {emoji:'🙆', text:'問題なく回答できそう'},
+    {emoji:'🤔', text:'一部むずかしそう'},
+    {emoji:'🙅', text:'むずかしそう'}
+  ]},
+  fb_interest: { container:'fbOpts2', opts:[
+    {emoji:'🔥', text:'とても引けそう'},
+    {emoji:'🙆', text:'まあ引けそう'},
+    {emoji:'😐', text:'あまり引けなさそう'}
+  ]}
+};
+
 // 金額入力のクイック選択チップ
 const URIAGE_CHIPS = [200, 300, 400, 500, 700, 1000];
 const KEIHI_RATIOS = [
@@ -638,6 +710,7 @@ const history = [];
    ============================================================ */
 function init() {
   Object.entries(QUESTIONS).forEach(([key, q]) => buildOptions(key, q));
+  Object.entries(FEEDBACK).forEach(([key, q]) => buildFeedbackOptions(key, q));
   buildMoney();
   showSlide('s0');
   document.getElementById('email').addEventListener('input', refreshSubmitState);
@@ -670,6 +743,63 @@ function buildOptions(key, q) {
       document.getElementById(q.next).disabled = false;
     });
     wrap.appendChild(btn);
+  });
+}
+
+/* ===== MGR向け感想 ===== */
+const feedback = {};
+
+function buildFeedbackOptions(key, q) {
+  const wrap = document.getElementById(q.container);
+  if (!wrap) return;
+  q.opts.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'opt-btn';
+    btn.dataset.value = opt.text;
+    btn.innerHTML =
+      `<span class="opt-emoji">${opt.emoji}</span>` +
+      `<span class="opt-label">${opt.text}</span>` +
+      `<span class="opt-check"></span>`;
+    btn.addEventListener('click', () => {
+      wrap.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      feedback[key] = opt.text;
+      // Q1・Q2 の両方が選ばれたら送信可能にする（自由記述は任意）
+      document.getElementById('fbSubmit').disabled =
+        !(feedback.fb_answerable && feedback.fb_interest);
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+// 感想は本編とは別レコードで送る（試算の回答は結果表示時に送信済みのため）
+function submitFeedback() {
+  const btn = document.getElementById('fbSubmit');
+  btn.disabled = true;
+  const payload = {
+    _token: POST_TOKEN,
+    _kind: 'feedback',
+    timestamp: new Date().toISOString(),
+    company: COMPANY,
+    company_id: COMPANY_ID,
+    role: 'マネージャー',
+    email: emailValue(),
+    fb_answerable: feedback.fb_answerable || '',
+    fb_interest:   feedback.fb_interest || '',
+    fb_free:       document.getElementById('fbFree').value.trim(),
+    fb_impression: document.getElementById('fbImpression').value.trim(),
+    user_agent: navigator.userAgent
+  };
+  fetch(GAS_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  })
+  .catch(e => console.error('feedback error', e))
+  .finally(() => {
+    document.getElementById('fbSubmit').style.display = 'none';
+    document.getElementById('fbDone').style.display = 'block';
   });
 }
 
@@ -807,7 +937,11 @@ function submitSurvey() {
 
   const payload = {
     _token: POST_TOKEN,
+    _kind: 'survey',
     timestamp: new Date().toISOString(),
+    company: COMPANY,
+    company_id: COMPANY_ID,
+    role: IS_MGR ? 'マネージャー' : 'スタッフ',
     email: emailValue(),
     q1_method: answers.q1_method || '',
     q2_submit: answers.q2_submit || '',
@@ -838,6 +972,7 @@ function submitSurvey() {
     loading.classList.remove('show');
     showSlide('s9');
     animateChart();
+    if (IS_MGR) document.getElementById('mgrFb').style.display = 'block';
   });
 }
 

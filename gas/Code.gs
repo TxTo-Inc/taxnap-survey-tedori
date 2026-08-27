@@ -16,14 +16,18 @@
  *       到達確認は本スプレッドシートの行と、下部の doGet ヘルスチェックで行う。
  */
 
-// 回答を書き込むシート名
-var SHEET_NAME = '回答';
+// 回答を書き込むシート名（_kind で振り分ける）
+var SHEET_SURVEY   = '回答';        // 試算アンケート本編（スタッフ・マネージャー共通）
+var SHEET_FEEDBACK = 'MGR感想';     // マネージャーの感想（?r=mgr のときだけ届く）
 
 // 列の定義。key = index.html の payload のキー / label = シートに表示する見出し
 // ※ key は変更しないこと（フロントの送信キーと対応）。label は自由に変えてよい。
 var COLUMNS = [
   { key: 'timestamp',     label: '送信時刻' },
   { key: 'received_at',   label: '受信時刻(JST)' },
+  { key: 'company',       label: '会社名' },
+  { key: 'company_id',    label: '会社コード' },
+  { key: 'role',          label: '対象者' },
   { key: 'email',         label: 'メールアドレス' },
   { key: 'q1_method',     label: 'Q1 申告のしかた' },
   { key: 'q2_submit',     label: 'Q2 提出方法' },
@@ -39,9 +43,23 @@ var COLUMNS = [
   { key: 'user_agent',    label: 'ブラウザ情報' }
 ];
 
+// MGR感想シートの列
+var FEEDBACK_COLUMNS = [
+  { key: 'timestamp',     label: '送信時刻' },
+  { key: 'received_at',   label: '受信時刻(JST)' },
+  { key: 'company',       label: '会社名' },
+  { key: 'company_id',    label: '会社コード' },
+  { key: 'email',         label: 'メールアドレス' },
+  { key: 'fb_answerable', label: 'Q1 美容師が回答できそうか' },
+  { key: 'fb_interest',   label: 'Q2 関心を引けそうか' },
+  { key: 'fb_free',       label: 'Q3 分かりにくい点・追加設問' },
+  { key: 'fb_impression', label: 'Q4 説明会の感想' },
+  { key: 'user_agent',    label: 'ブラウザ情報' }
+];
+
 /** 見出し行に使うラベルの配列 */
-function headerLabels_() {
-  return COLUMNS.map(function (c) { return c.label; });
+function headerLabels_(cols) {
+  return cols.map(function (c) { return c.label; });
 }
 
 /** 同時投稿で行が壊れないようロックを取る */
@@ -66,10 +84,13 @@ function doPost(e) {
       return jsonOut({ ok: false, error: 'unauthorized' });
     }
 
-    var sheet = getSheet_();
+    // _kind で書き込み先とスキーマを切り替える（既定は本編アンケート）
+    var isFeedback = (data._kind === 'feedback');
+    var cols  = isFeedback ? FEEDBACK_COLUMNS : COLUMNS;
+    var sheet = getSheet_(isFeedback ? SHEET_FEEDBACK : SHEET_SURVEY, cols);
     var jst = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd HH:mm:ss');
 
-    var row = COLUMNS.map(function (col) {
+    var row = cols.map(function (col) {
       if (col.key === 'received_at') return jst;
       var v = data[col.key];
       if (v === undefined || v === null) return '';
@@ -90,20 +111,21 @@ function doPost(e) {
 
 /** 動作確認用。ブラウザで /exec を開くと現在の回答数が見える */
 function doGet() {
-  var sheet = getSheet_();
+  var survey   = getSheet_(SHEET_SURVEY, COLUMNS);
+  var feedback = getSheet_(SHEET_FEEDBACK, FEEDBACK_COLUMNS);
   return jsonOut({
     ok: true,
-    sheet: SHEET_NAME,
-    responses: Math.max(sheet.getLastRow() - 1, 0)
+    responses: Math.max(survey.getLastRow() - 1, 0),
+    feedback:  Math.max(feedback.getLastRow() - 1, 0)
   });
 }
 
 /** シートが無ければ作り、ヘッダー行を用意する */
-function getSheet_() {
+function getSheet_(name, cols) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(SHEET_NAME);
-  if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
-  var labels = headerLabels_();
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) sheet = ss.insertSheet(name);
+  var labels = headerLabels_(cols);
 
   if (sheet.getLastRow() === 0) {
     // 新規シート: 見出し行を作る
