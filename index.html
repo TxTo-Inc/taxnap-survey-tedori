@@ -48,16 +48,18 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .step-icon{flex-shrink:0;font-size:1.1rem}
 
 .q-number{font-size:.8rem;font-weight:700;color:var(--brand);margin-bottom:6px}
-.q-title{font-size:1.15rem;font-weight:700;line-height:1.6;margin-bottom:6px}
-.q-subtitle{font-size:.8rem;color:var(--text-sub);margin-bottom:20px}
-.q-hint{font-size:.78rem;color:var(--text-sub);line-height:1.7;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:16px}
+.q-title{font-size:1.15rem;font-weight:700;line-height:1.6;margin-bottom:6px;word-break:auto-phrase}
+.q-subtitle{font-size:.8rem;color:var(--text-sub);margin-bottom:20px;word-break:auto-phrase}
+.q-hint{font-size:.78rem;color:var(--text-sub);line-height:1.7;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:16px;word-break:auto-phrase}
 
 .options{display:flex;flex-direction:column;gap:10px}
 .opt-btn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 18px;border:2px solid #e5e7eb;border-radius:var(--radius);background:#fff;font-size:.95rem;font-family:inherit;color:var(--text);cursor:pointer;transition:all .15s}
 .opt-btn:active{transform:scale(.98)}
 .opt-btn.selected{border-color:var(--brand);background:var(--brand-light);color:var(--brand-dark);font-weight:500}
 .opt-btn .opt-emoji{font-size:1.2rem;flex-shrink:0}
-.opt-btn .opt-label{flex:1}
+.opt-btn .opt-label{flex:1;line-height:1.5;word-break:auto-phrase;overflow-wrap:anywhere}
+.opt-btn .opt-sub{display:block;font-size:.76rem;color:var(--text-sub);font-weight:400;margin-top:3px;line-height:1.5}
+.opt-btn.selected .opt-sub{color:#4a8a67}
 .opt-btn .opt-check{width:20px;height:20px;border:2px solid #d0d0d0;border-radius:50%;margin-left:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .opt-btn.selected .opt-check{border-color:var(--brand);background:var(--brand)}
 .opt-btn.selected .opt-check::after{content:'✓';color:#fff;font-size:.7rem;font-weight:700}
@@ -239,9 +241,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <!-- ===== Q3: 青色申告承認申請書 ===== -->
   <div class="slide" id="s3">
     <div class="q-number">Q3</div>
-    <div class="q-title">開業のとき、開業届と一緒に「青色申告承認申請書」を出しましたか？</div>
+    <div class="q-title">開業のとき、開業届と一緒に<br>「青色申告承認申請書」を出しましたか？</div>
     <div class="q-subtitle">最も近いもの1つ</div>
-    <div class="q-hint">💡 青色申告をするために、事前に税務署へ出す紙1枚の届出です</div>
+    <div class="q-hint">💡 青色申告をするために、事前に税務署へ出す<br>「紙1枚」の届出です</div>
     <div class="options" id="opts3"></div>
     <button class="btn-next" id="next3" disabled onclick="goNext()">次へ →</button>
     <button class="btn-back" onclick="goBack()">← 戻る</button>
@@ -557,13 +559,16 @@ function estimate() {
 const QUESTIONS = {
   q1_method: { container:'opts1', next:'next1', opts:[
     {emoji:'👔', text:'税理士におまかせした'},
-    {emoji:'💻', text:'会計ソフトで自分でした（freee・マネフォ・弥生など）'},
+    {emoji:'💻', text:'会計ソフトで自分でした（freee・マネフォ・弥生など）',
+                 label:'会計ソフトで自分でした', sub:'freee・マネーフォワード・弥生 など'},
     {emoji:'🏢', text:'税務署に行って実施した'},
-    {emoji:'✍️', text:'手書き・国税庁サイトで自分でした'},
+    {emoji:'✍️', text:'手書き・国税庁サイトで自分でした',
+                 label:'自分で作成した', sub:'手書き・国税庁サイト'},
     {emoji:'🆕', text:'していない／今年が初めて'}
   ]},
   q2_submit: { container:'opts2', next:'next2', opts:[
-    {emoji:'📱', text:'スマホ・パソコンから送信（e-Tax）'},
+    {emoji:'📱', text:'スマホ・パソコンから送信（e-Tax）',
+                 label:'スマホ・パソコンから送信', sub:'e-Tax'},
     {emoji:'📮', text:'紙を郵送・税務署に持参'},
     {emoji:'❓', text:'わからない'}
   ]},
@@ -578,7 +583,8 @@ const QUESTIONS = {
   ]},
   q7_insurance: { container:'opts7', next:'next7', opts:[
     {emoji:'🏥', text:'国民健康保険に入っている'},
-    {emoji:'👨‍👩‍👦', text:'家族の社会保険の扶養に入っている'},
+    {emoji:'👨‍👩‍👦', text:'家族の社会保険の扶養に入っている',
+                 label:'家族の扶養に入っている', sub:'配偶者・親などの社会保険'},
     {emoji:'❓', text:'わからない'}
   ]}
 };
@@ -613,9 +619,13 @@ function buildOptions(key, q) {
     btn.className = 'opt-btn';
     btn.dataset.value = opt.text;
     btn.setAttribute('aria-pressed', 'false');
+    // label があればそれを主表示に、sub があれば小さい2行目に出す。
+    // 集計キーは opt.text（dataset.value）なので、表示を変えても回答値は変わらない。
     btn.innerHTML =
       `<span class="opt-emoji">${opt.emoji}</span>` +
-      `<span class="opt-label">${opt.text}</span>` +
+      `<span class="opt-label">${opt.label || opt.text}` +
+        (opt.sub ? `<span class="opt-sub">${opt.sub}</span>` : '') +
+      `</span>` +
       `<span class="opt-check"></span>`;
     btn.addEventListener('click', () => {
       wrap.querySelectorAll('.opt-btn').forEach(b => {
