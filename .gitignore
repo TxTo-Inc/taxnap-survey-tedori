@@ -1,0 +1,6 @@
+node_modules/
+package-lock.json
+package.json
+result_*.png
+engine.js
+part*.html

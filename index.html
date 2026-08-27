@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>手取りシミュレーション | タックスナップ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@rive-app/canvas@2.7.0"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--brand:#27BA74;--brand-light:#e8f8ef;--brand-dark:#1e9a5e;--bg:#f8faf9;--text:#1a1a1a;--text-sub:#666;--radius:12px;--red:#dc2626}
+html{font-size:16px}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;display:flex;flex-direction:column;-webkit-tap-highlight-color:transparent}
+
+.progress-wrap{position:fixed;top:0;left:0;right:0;z-index:100;background:#fff;padding:12px 20px 10px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.progress-bar{height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:var(--brand);border-radius:3px;transition:width .4s ease}
+.progress-text{font-size:.75rem;color:var(--text-sub);margin-top:6px;text-align:right}
+
+.survey-container{flex:1;display:flex;align-items:center;justify-content:center;padding:80px 20px 40px}
+.slide{display:none;width:100%;max-width:480px;animation:slideIn .35s ease}
+.slide.active{display:block}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+
+.rive-wrap{text-align:center;margin-bottom:12px}
+.rive-wrap canvas{width:160px;height:160px}
+.logo-img{height:26px;width:auto;display:block;margin:0 auto 20px}
+.intro-note{font-size:.78rem;color:var(--text-sub);line-height:1.7;background:#fff;border:1px solid #e5e7eb;border-radius:var(--radius);padding:12px 14px;margin-bottom:22px}
+
+.intro-card{background:#fff;border-radius:20px;padding:24px 20px 28px;text-align:center;position:relative;overflow:hidden;margin-bottom:14px}
+.intro-card::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,#f0fbf5 0%,#fff 62%);z-index:0}
+.intro-card > *{position:relative;z-index:1}
+.intro-deco{position:absolute;font-size:1.1rem;opacity:.5;z-index:1}
+.intro-deco-1{top:14px;left:16px}
+.intro-deco-2{top:14px;right:16px}
+.intro-bubble{display:inline-block;background:#fff;border-radius:16px;padding:8px 18px;font-size:.9rem;font-weight:700;color:var(--brand-dark);box-shadow:0 2px 10px rgba(0,0,0,.08);position:relative;margin-bottom:14px}
+.intro-bubble::after{content:'';position:absolute;bottom:-6px;left:50%;margin-left:-6px;width:12px;height:12px;background:#fff;transform:rotate(45deg)}
+.intro-headline{font-size:1.7rem;font-weight:800;line-height:1.35;margin-bottom:8px;letter-spacing:.01em}
+.intro-sub{font-size:.9rem;color:var(--text-sub);line-height:1.8}
+
+.steps{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
+.step-row{display:flex;align-items:center;gap:12px;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 1px 6px rgba(0,0,0,.05)}
+.step-num{width:28px;height:28px;flex-shrink:0;border-radius:50%;background:var(--brand);color:#fff;font-size:.85rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+.step-text{flex:1;font-size:.93rem;font-weight:500;text-align:left;line-height:1.5}
+.step-badge{flex-shrink:0;font-size:.75rem;font-weight:700;color:var(--brand-dark);background:var(--brand-light);padding:3px 10px;border-radius:20px}
+.step-icon{flex-shrink:0;font-size:1.1rem}
+
+.q-number{font-size:.8rem;font-weight:700;color:var(--brand);margin-bottom:6px}
+.q-title{font-size:1.15rem;font-weight:700;line-height:1.6;margin-bottom:6px}
+.q-subtitle{font-size:.8rem;color:var(--text-sub);margin-bottom:20px}
+.q-hint{font-size:.78rem;color:var(--text-sub);line-height:1.7;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:16px}
+
+.options{display:flex;flex-direction:column;gap:10px}
+.opt-btn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 18px;border:2px solid #e5e7eb;border-radius:var(--radius);background:#fff;font-size:.95rem;font-family:inherit;color:var(--text);cursor:pointer;transition:all .15s}
+.opt-btn:active{transform:scale(.98)}
+.opt-btn.selected{border-color:var(--brand);background:var(--brand-light);color:var(--brand-dark);font-weight:500}
+.opt-btn .opt-emoji{font-size:1.2rem;flex-shrink:0}
+.opt-btn .opt-label{flex:1}
+.opt-btn .opt-check{width:20px;height:20px;border:2px solid #d0d0d0;border-radius:50%;margin-left:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.opt-btn.selected .opt-check{border-color:var(--brand);background:var(--brand)}
+.opt-btn.selected .opt-check::after{content:'✓';color:#fff;font-size:.7rem;font-weight:700}
+
+/* 金額入力 */
+.money-wrap{background:#fff;border:2px solid #e5e7eb;border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:8px;transition:border-color .2s}
+.money-wrap:focus-within{border-color:var(--brand)}
+.money-input{flex:1;border:none;font-size:1.5rem;font-weight:700;font-family:inherit;text-align:right;background:none;color:var(--text);min-width:0}
+.money-input:focus{outline:none}
+.money-unit{font-size:1rem;font-weight:700;color:var(--text-sub);flex-shrink:0}
+.money-yen{font-size:.8rem;color:var(--text-sub);text-align:right;margin-top:8px;min-height:1.2em}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{padding:8px 14px;border:1.5px solid #e5e7eb;border-radius:20px;background:#fff;font-size:.85rem;font-family:inherit;color:var(--text-sub);cursor:pointer}
+.chip:active{transform:scale(.96)}
+.chip.on{border-color:var(--brand);background:var(--brand-light);color:var(--brand-dark);font-weight:700}
+
+.email-input{width:100%;padding:14px 16px;border:2px solid #e5e7eb;border-radius:var(--radius);font-size:1rem;font-family:inherit;background:#fff;transition:border-color .2s}
+.email-input:focus{outline:none;border-color:var(--brand)}
+.input-error{border-color:#e74c3c !important}
+.error-msg{font-size:.8rem;color:#e74c3c;margin-top:6px;display:none}
+.error-msg.show{display:block}
+
+.btn-next{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:24px;padding:14px 32px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius);font-size:1rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .2s;width:100%}
+.btn-next:active{background:var(--brand-dark);transform:scale(.98)}
+.btn-next:disabled{background:#ccc;color:#888;cursor:not-allowed;transform:none}
+.btn-back{display:flex;align-items:center;justify-content:center;margin-top:10px;padding:10px;background:none;border:none;color:var(--text-sub);font-size:.85rem;font-family:inherit;cursor:pointer;width:100%}
+
+/* ===== 結果画面 ===== */
+.result-hero{background:#fff;border-radius:20px;padding:22px 20px;text-align:center;margin-bottom:14px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.result-kicker{font-size:.82rem;font-weight:700;color:var(--brand-dark);background:var(--brand-light);display:inline-block;padding:4px 14px;border-radius:20px;margin-bottom:14px}
+.result-label{font-size:.85rem;color:var(--text-sub);margin-bottom:4px}
+.result-amount{font-size:2.5rem;font-weight:900;line-height:1.15;letter-spacing:-.01em}
+.result-amount .unit{font-size:1.1rem;font-weight:700;margin-left:2px}
+.result-sub{font-size:.8rem;color:var(--text-sub);margin-top:8px;line-height:1.7}
+
+.card{background:#fff;border-radius:16px;padding:18px 18px;margin-bottom:14px;box-shadow:0 1px 8px rgba(0,0,0,.05)}
+.card-title{font-size:.95rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+
+/* 推定の明示 */
+.est-box{background:#f6fbf8;border:1.5px solid #cdebda;border-radius:12px;padding:13px 14px;font-size:.85rem;line-height:1.75}
+.est-box b{color:var(--brand-dark)}
+.est-link{display:inline-block;margin-top:9px;font-size:.8rem;color:var(--brand-dark);font-weight:700;text-decoration:underline;cursor:pointer;background:none;border:none;font-family:inherit;padding:0}
+
+/* 内訳テーブル */
+.bd{width:100%;border-collapse:collapse;font-size:.88rem}
+.bd td{padding:9px 0;border-bottom:1px solid #f0f0f0}
+.bd td:last-child{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.bd tr:last-child td{border-bottom:none}
+.bd .total td{border-top:2px solid #e5e7eb;padding-top:11px;font-weight:800}
+.bd .total td:last-child{color:var(--brand-dark);font-size:1.05rem}
+.bd .minus td:last-child{color:var(--text-sub)}
+
+/* グラフ（2本棒） */
+.chart{display:flex;align-items:flex-end;justify-content:center;gap:26px;height:210px;margin:8px 0 4px}
+.bar-col{display:flex;flex-direction:column;align-items:center;flex:1;max-width:120px;height:100%;justify-content:flex-end}
+.bar-val{font-size:1rem;font-weight:800;margin-bottom:7px;white-space:nowrap}
+.bar{width:100%;border-radius:10px 10px 0 0;transition:height .9s cubic-bezier(.2,.8,.2,1);min-height:4px}
+.bar.now{background:linear-gradient(180deg,#c8cdd2,#aab1b7)}
+.bar.after{background:linear-gradient(180deg,#3ed389,var(--brand))}
+.bar-label{font-size:.8rem;color:var(--text-sub);margin-top:9px;text-align:center;line-height:1.5;font-weight:500}
+.bar-label b{color:var(--text);font-weight:700}
+.delta-badge{background:linear-gradient(135deg,#e8f8ef,#d5f2e3);border:2px solid var(--brand);border-radius:14px;padding:14px;text-align:center;margin-top:6px}
+.delta-lead{font-size:.85rem;font-weight:700;color:var(--brand-dark);margin-bottom:2px}
+.delta-amount{font-size:2rem;font-weight:900;color:var(--brand-dark);line-height:1.2}
+.delta-note{font-size:.75rem;color:#4a7a60;margin-top:4px}
+
+/* 警告（書面申告で減るケース） */
+.warn-box{background:#fff7ed;border:2px solid #f0a92e;border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.warn-title{font-size:.92rem;font-weight:700;color:#8b6914;margin-bottom:6px}
+.warn-body{font-size:.83rem;color:#8b6914;line-height:1.75}
+
+.app-cta{margin-top:6px;padding:20px;background:#fff;border:2px solid var(--brand);border-radius:16px;text-align:center}
+.app-cta-title{font-size:1rem;font-weight:700;color:var(--brand-dark);line-height:1.7;margin-bottom:12px}
+.app-cta-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:15px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius);font-size:1rem;font-weight:700;font-family:inherit;text-decoration:none}
+.app-cta-btn:active{background:var(--brand-dark);transform:scale(.98)}
+
+.disclaimer{font-size:.72rem;color:#8a8f93;line-height:1.75;margin-top:16px;padding:0 4px}
+.disclaimer b{color:var(--text-sub)}
+
+.loading{display:none;position:fixed;inset:0;background:rgba(255,255,255,.85);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.loading.show{display:flex}
+.spinner{width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:var(--brand);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="progress-wrap">
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-text" id="progressText"></div>
+</div>
+
+<div class="survey-container">
+
+  <!-- ===== Slide 0: Intro ===== -->
+  <div class="slide" id="s0">
+    <img src="taxnap_logo.png" alt="タックスナップ" class="logo-img">
+    <div class="intro-card">
+      <span class="intro-deco intro-deco-1">💰</span>
+      <span class="intro-deco intro-deco-2">📊</span>
+      <div class="rive-wrap"><canvas id="snappyIntro" width="320" height="320"></canvas></div>
+      <div class="intro-bubble">あなたの手取り、いくら？</div>
+      <h1 class="intro-headline">手取りシミュレーション</h1>
+      <p class="intro-sub">かんたん8問・約2分で<br>いまの手取り額がわかります</p>
+    </div>
+
+    <div class="steps">
+      <div class="step-row">
+        <span class="step-num">1</span>
+        <span class="step-text">申告のしかたを3問で選ぶ</span>
+        <span class="step-badge">30秒</span>
+      </div>
+      <div class="step-row">
+        <span class="step-num">2</span>
+        <span class="step-text">売上・経費をざっくり入力</span>
+        <span class="step-badge">1分</span>
+      </div>
+      <div class="step-row">
+        <span class="step-num">3</span>
+        <span class="step-text">手取り額と、増やせる金額がわかる</span>
+        <span class="step-icon">📈</span>
+      </div>
+    </div>
+
+    <div class="intro-note">
+      ✅ 入力内容は税額の試算のみに使用します<br>
+      ✅ ざっくりした金額でOK。あとから変更もできます
+    </div>
+
+    <button class="btn-next" onclick="goNext()">シミュレーションを始める 🚀</button>
+  </div>
+
+  <!-- ===== Q1: 申告のしかた ===== -->
+  <div class="slide" id="s1">
+    <div class="q-number">Q1</div>
+    <div class="q-title">確定申告はどうやっていますか？</div>
+    <div class="q-subtitle">最も近いもの1つ</div>
+    <div class="options" id="opts1"></div>
+    <button class="btn-next" id="next1" disabled onclick="goNext()">次へ →</button>
+    <button class="btn-back" onclick="goBack()">← 戻る</button>
+  </div>
+
+  <!-- ===== Q2: 提出方法 ===== -->
+  <div class="slide" id="s2">
+    <div class="q-number">Q2</div>
+    <div class="q-title">申告書の提出はどうしていますか？</div>
+    <div class="q-subtitle">最も近いもの1つ</div>
+    <div class="options" id="opts2"></div>
+    <button class="btn-next" id="next2" disabled onclick="goNext()">次へ →</button>
+    <button class="btn-back" onclick="goBack()">← 戻る</button>
+  </div>
+
+  <!-- ===== Q3: 青色申告承認申請書 ===== -->
+  <div class="slide" id="s3">
+    <div class="q-number">Q3</div>
+    <div class="q-title">開業のとき、開業届と一緒に「青色申告承認申請書」を出しましたか？</div>
+    <div class="q-subtitle">最も近いもの1つ</div>
+    <div class="q-hint">💡 青色申告をするために、事前に税務署へ出す紙1枚の届出です</div>
+    <div class="options" id="opts3"></div>
+    <button class="btn-next" id="next3" disabled onclick="goNext()">次へ →</button>
+    <button class="btn-back" onclick="goBack()">← 戻る</button>
+  </div>
+
+  <!-- ===== Q4: 売上 ===== -->
+  <div class="slide" id="s4">
+    <div class="q-number">Q4</div>
+    <div class="q-title">1年間の売上はどのくらいですか？</div>
+    <div class="q-subtitle">おおよその金額でOK（入金の合計）</div>
+    <div class="money-wrap">
+      <input type="text" inputmode="numeric" class="money-input" id="uriage" placeholder="500" autocomplete="off">
+      <span class="money-unit">万円</span>
+    </div>
+    <div class="money-yen" id="uriageYen"></div>
+    <div class="chips" id="uriageChips"></div>
+    <button class="btn-next" id="next4" disabled onclick="goNext()">次へ →</button>
+    <button class="btn-back" onclick="goBack()">← 戻る</button>
+  </div>
+
+  <!-- ===== Q5: 経費 ===== -->
+  <div class="slide" id="s5">
+    <div class="q-number">Q5</div>
+    <div class="q-title">1年間の経費はどのくらいですか？</div>
+    <div class="q-subtitle">仕事のために使ったお金の合計</div>
+    <div class="q-hint">💡 わからなければ下のボタンで「売上の◯％」を選んでください</div>
+    <div class="money-wrap">
+      <input type="text" inputmode="numeric" class="money-input" id="keihi" placeholder="200" autocomplete="off">
+      <span class="money-unit">万円</span>
+    </div>
+    <div class="money-yen" id="keihiYen"></div>
+    <div class="chips" id="keihiChips"></div>
+    <button class="btn-next" id="next5" disabled onclick="goNext()">次へ →</button>
+    <button class="btn-back" onclick="goBack()">← 戻る</button>
+  </div>
+
+  <!-- ===== Q6: 年齢 ===== -->
+  <div class="slide" id="s6">
+    <div class="q-number">Q6</div>
+    <div class="q-title">年齢を教えてください</div>
+    <div class="q-subtitle">40歳以上は介護保険料がかかるため、金額が変わります</div>
+    <div class="options" id="opts6"></div>
+    <button class="btn-next" id="next6" disabled onclick="goNext()">次へ →</button>
+    <button class="btn-back" onclick="goBack()">← 戻る</button>
+  </div>
+
+  <!-- ===== Q7: 保険の加入形態 ===== -->
+  <div class="slide" id="s7">
+    <div class="q-number">Q7</div>
+    <div class="q-title">健康保険はどうされていますか？</div>
+    <div class="q-subtitle">最も近いもの1つ</div>
+    <div class="options" id="opts7"></div>
+    <button class="btn-next" id="next7" disabled onclick="goNext()">次へ →</button>
+    <button class="btn-back" onclick="goBack()">← 戻る</button>
+  </div>
+
+  <!-- ===== Q8: メール（結果表示のゲート） ===== -->
+  <div class="slide" id="s8">
+    <div class="q-number">最後に</div>
+    <div class="q-title">結果を表示します</div>
+    <div class="q-subtitle">メールアドレスをご入力ください</div>
+    <div class="q-hint">💡 節税や確定申告に役立つ情報のご案内に使用します。いつでも配信停止できます</div>
+    <input type="email" class="email-input" id="email" placeholder="example@mail.com" autocomplete="email">
+    <div class="error-msg" id="emailError">メールアドレスの形式をご確認ください</div>
+    <button class="btn-next" id="next8" disabled onclick="submitSurvey()">結果を見る 📊</button>
+    <button class="btn-back" onclick="goBack()">← 戻る</button>
+  </div>
+
+  <!-- ===== Slide 9: 結果 ===== -->
+  <div class="slide" id="s9">
+    <div class="result-hero">
+      <div class="result-kicker" id="resKicker">あなたの手取り</div>
+      <div class="result-label" id="resLabel">いまの申告方法での手取り（年間）</div>
+      <div class="result-amount" id="resAmount">—</div>
+      <div class="result-sub" id="resSub"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔍 ご回答からの推定</div>
+      <div class="est-box" id="estBox"></div>
+    </div>
+
+    <div id="warnSlot"></div>
+
+    <div class="card" id="chartCard" style="display:none">
+      <div class="card-title" id="chartTitle">📈 青色申告に切り替えると</div>
+      <div class="chart">
+        <div class="bar-col">
+          <div class="bar-val" id="barNowVal">—</div>
+          <div class="bar now" id="barNow" style="height:0"></div>
+          <div class="bar-label" id="barNowLabel"><b>いま</b></div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-val" id="barAfterVal">—</div>
+          <div class="bar after" id="barAfter" style="height:0"></div>
+          <div class="bar-label" id="barAfterLabel"><b>2027年<br>青色申告</b></div>
+        </div>
+      </div>
+      <div class="delta-badge">
+        <div class="delta-lead" id="deltaLead">手取りはこれだけ増えます</div>
+        <div class="delta-amount" id="deltaAmount">—</div>
+        <div class="delta-note" id="deltaNote"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 内訳（いまの申告方法）</div>
+      <table class="bd" id="bdTable"></table>
+    </div>
+
+    <div class="app-cta">
+      <div class="app-cta-title" id="ctaTitle">スマホだけで、青色申告が完結します</div>
+      <a class="app-cta-btn" href="https://taxnap.co.jp/" target="_blank" rel="noopener">タックスナップを見る →</a>
+    </div>
+
+    <div class="disclaimer" id="disclaimer"></div>
+    <button class="btn-back" onclick="restart()">↻ 条件を変えて試算する</button>
+  </div>
+
+</div>
+
+<div class="loading" id="loading"><div class="spinner"></div><div style="font-size:.85rem;color:#666">計算中…</div></div>
+<script>
+/* ============================================================
+   【変更箇所①】GAS の URL とトークン（README「GASデプロイ手順」参照）
+   ============================================================ */
+const GAS_URL = 'https://script.google.com/macros/s/PASTE_YOUR_DEPLOY_ID/exec';
+const POST_TOKEN = 'PASTE_YOUR_TOKEN';
+
+/* ============================================================
+   税額計算エンジン
+   ------------------------------------------------------------
+   参照実装: 03_PRODUCT/alliance/eclart/20260825_ECLART_手取り試算.py
+   ECLART確定版（売上500万・経費率40%・2027年75万控除）と一致することを
+   検証済み: 白色 2,140,441 / 青色75万 2,321,666 / 差 +181,225
+   ロジックを変えるときは必ず参照実装と突き合わせる。
+   ============================================================ */
+const NENKIN = 215040;              // 国民年金 年額
+const KOKUHO_RATE = 0.1067;         // 東京23区 所得割（医療＋支援）
+const KOKUHO_KINTO = 66300;         // 均等割（1人）
+const KOKUHO_KAIGO_RATE = 0.0229;   // 40歳以上の介護分 所得割
+const KOKUHO_KAIGO_KINTO = 16200;   // 介護分 均等割
+const KOKUHO_KISO = 430000;         // 国保の基礎控除
+const KOKUHO_CAP = 1090000;         // 賦課限度額
+const JUMIN_KISO = 430000;
+const JUMIN_HIKAZEI = 450000;       // 均等割の非課税限度（単身）
+const JIGYOZEI_KOJO = 2900000;      // 個人事業税の事業主控除
+
+function shotokuZei(k) {
+  k = Math.floor(k / 1000) * 1000;
+  if (k <= 0) return 0;
+  let t;
+  if (k <= 1950000)       t = k * 0.05;
+  else if (k <= 3300000)  t = k * 0.10 - 97500;
+  else if (k <= 6950000)  t = k * 0.20 - 427500;
+  else if (k <= 9000000)  t = k * 0.23 - 636000;
+  else if (k <= 18000000) t = k * 0.33 - 1536000;
+  else if (k <= 40000000) t = k * 0.40 - 2796000;
+  else                    t = k * 0.45 - 4796000;
+  return Math.floor(Math.floor(t * 1.021) / 100) * 100;
+}
+
+// 基礎控除。2026年分（令和8年分）は上乗せあり、2027年分以降は恒久措置の58万円
+function kisoKojo(gokei, year) {
+  if (year === 2026) {
+    if (gokei <= 1320000) return 950000;
+    if (gokei <= 3360000) return 880000;
+    if (gokei <= 4890000) return 680000;
+    if (gokei <= 6550000) return 630000;
+    return 580000;
+  }
+  return 580000;
+}
+
+/**
+ * 手取りを計算する
+ * @param uriage 売上（円） / keihi 経費（円） / aoiroKojo 青色申告特別控除（円）
+ * @param year 2026 | 2027 / age40 40歳以上か / shaho true=家族の社保・国保以外
+ */
+function tedori(uriage, keihi, aoiroKojo, year, age40, shaho) {
+  const jigyo = Math.max(0, uriage - keihi);      // 事業所得（青色控除前）
+  const aoiro = Math.min(aoiroKojo, jigyo);
+  const gokei = jigyo - aoiro;                    // 合計所得金額
+
+  // 個人事業税（青色申告特別控除は適用されない）
+  const jbase = jigyo - JIGYOZEI_KOJO;
+  const jigyozei = jbase > 0
+    ? Math.floor(Math.floor(jbase / 1000) * 1000 * 0.05 / 100) * 100 : 0;
+
+  // 社会保険料
+  let shahoRyo;
+  if (shaho) {
+    shahoRyo = Math.floor(gokei * 0.15);          // 概算
+  } else {
+    const rate  = KOKUHO_RATE + (age40 ? KOKUHO_KAIGO_RATE : 0);
+    const kinto = KOKUHO_KINTO + (age40 ? KOKUHO_KAIGO_KINTO : 0);
+    let kokuho = Math.max(0, gokei - KOKUHO_KISO) * rate + kinto;
+    kokuho = Math.min(kokuho, KOKUHO_CAP);
+    shahoRyo = Math.floor(kokuho) + NENKIN;
+  }
+
+  // 所得税（復興特別所得税込み）
+  const shotokuzei = shotokuZei(gokei - shahoRyo - kisoKojo(gokei, year));
+
+  // 住民税
+  let juminzei;
+  if (gokei <= JUMIN_HIKAZEI) {
+    juminzei = 0;                                 // 所得割・均等割ともに非課税
+  } else {
+    const kj = gokei - shahoRyo - JUMIN_KISO;
+    juminzei = kj > 0
+      ? Math.floor(Math.floor(kj / 1000) * 1000 * 0.10) - 2500 + 5000 : 5000;
+  }
+
+  return {
+    jigyo, aoiro, gokei, jigyozei, shaho: shahoRyo, shotokuzei, juminzei,
+    tedori: Math.round(uriage - keihi - jigyozei - shahoRyo - shotokuzei - juminzei)
+  };
+}
+
+/* ============================================================
+   控除額の推定
+   ------------------------------------------------------------
+   Q1（申告のしかた）・Q2（提出方法）・Q3（承認申請書）から、
+   いまの記帳方法と控除額を推定する。画像の控除テーブルに準拠。
+
+   記帳方法 → 控除額
+                              2026年分   2027年分以降
+   白色                          0万        0万
+   青色・簡易簿記                10万       10万（※収入1000万超は対象外）
+   青色・複式簿記＋書面申告      55万       10万  ← 2027年で45万減る
+   青色・複式簿記＋e-Tax        65万       65万
+   上記＋優良な電子帳簿          65万       75万
+   ============================================================ */
+const KICHO = {
+  SHIRO:      'shiro',        // 白色申告
+  KANI:       'kani',         // 青色・簡易簿記（10万）
+  FUKUSHIKI_P:'fukushiki_p',  // 青色・複式簿記＋書面申告
+  FUKUSHIKI_E:'fukushiki_e'   // 青色・複式簿記＋e-Tax
+};
+
+const KOJO_TABLE = {
+  shiro:       { 2026: 0,      2027: 0 },
+  kani:        { 2026: 100000, 2027: 100000 },
+  fukushiki_p: { 2026: 550000, 2027: 100000 },
+  fukushiki_e: { 2026: 650000, 2027: 650000 }
+};
+// 優良な電子帳簿／デジタルシームレス保存まで満たした場合の 2027年分
+const KOJO_YURYO_2027 = 750000;
+
+function estimate() {
+  const q1 = answers.q1_method;
+  const q2 = answers.q2_submit;
+  const q3 = answers.q3_shinsei;
+
+  const isAoiro = q3 === '出した';
+  const isEtax  = q2 === 'スマホ・パソコンから送信（e-Tax）';
+
+  // 承認申請書を出していない／覚えていない → 青色の要件を満たせないため白色として扱う
+  if (!isAoiro) {
+    return {
+      kicho: KICHO.SHIRO,
+      reason: q3 === '出していない'
+        ? '青色申告承認申請書を<b>出していない</b>ため'
+        : '青色申告承認申請書を出したか<b>覚えていない</b>ため（出していない前提で試算）',
+      label: '白色申告'
+    };
+  }
+
+  // 承認申請書あり＝青色。記帳方法を Q1 から推定する
+  //  税理士／会計ソフト → 複式簿記が前提
+  //  税務署・手書き・していない → 簡易簿記の可能性が高い
+  const fukushiki =
+    q1 === '税理士におまかせした' ||
+    q1 === '会計ソフトで自分でした（freee・マネフォ・弥生など）';
+
+  if (!fukushiki) {
+    return {
+      kicho: KICHO.KANI,
+      reason: '青色申告だが、<b>手書き・国税庁サイト等</b>での作成のため簡易簿記と推定',
+      label: '青色申告・簡易簿記（10万円控除）'
+    };
+  }
+  if (isEtax) {
+    return {
+      kicho: KICHO.FUKUSHIKI_E,
+      reason: '青色申告・<b>複式簿記＋e-Tax提出</b>のため',
+      label: '青色申告・複式簿記＋e-Tax（65万円控除）'
+    };
+  }
+  return {
+    kicho: KICHO.FUKUSHIKI_P,
+    reason: '青色申告・複式簿記だが、<b>紙で提出</b>のため',
+    label: '青色申告・複式簿記＋書面申告（55万円控除）'
+  };
+}
+</script>
+<script>
+/* ============================================================
+   設問データ
+   ============================================================ */
+const QUESTIONS = {
+  q1_method: { container:'opts1', next:'next1', opts:[
+    {emoji:'👔', text:'税理士におまかせした'},
+    {emoji:'💻', text:'会計ソフトで自分でした（freee・マネフォ・弥生など）'},
+    {emoji:'🏢', text:'税務署に行って実施した'},
+    {emoji:'✍️', text:'手書き・国税庁サイトで自分でした'},
+    {emoji:'🆕', text:'していない／今年が初めて'}
+  ]},
+  q2_submit: { container:'opts2', next:'next2', opts:[
+    {emoji:'📱', text:'スマホ・パソコンから送信（e-Tax）'},
+    {emoji:'📮', text:'紙を郵送・税務署に持参'},
+    {emoji:'❓', text:'わからない'}
+  ]},
+  q3_shinsei: { container:'opts3', next:'next3', opts:[
+    {emoji:'✅', text:'出した'},
+    {emoji:'🙅', text:'出していない'},
+    {emoji:'🤔', text:'覚えていない'}
+  ]},
+  q6_age: { container:'opts6', next:'next6', opts:[
+    {emoji:'🧑', text:'39歳以下'},
+    {emoji:'🧓', text:'40歳以上'}
+  ]},
+  q7_insurance: { container:'opts7', next:'next7', opts:[
+    {emoji:'🏥', text:'国民健康保険に入っている'},
+    {emoji:'👨‍👩‍👦', text:'家族の社会保険の扶養に入っている'},
+    {emoji:'❓', text:'わからない'}
+  ]}
+};
+
+// 金額入力のクイック選択チップ
+const URIAGE_CHIPS = [200, 300, 500, 700, 1000];
+const KEIHI_RATIOS = [
+  {label:'売上の10%', r:0.10}, {label:'20%', r:0.20},
+  {label:'30%', r:0.30}, {label:'40%', r:0.40}, {label:'50%', r:0.50}
+];
+
+const answers = {};
+const ALL_STEPS = ['s0','s1','s2','s3','s4','s5','s6','s7','s8'];
+let current = 's0';
+const history = [];
+
+/* ============================================================
+   初期化
+   ============================================================ */
+function init() {
+  Object.entries(QUESTIONS).forEach(([key, q]) => buildOptions(key, q));
+  buildMoney();
+  showSlide('s0');
+  document.getElementById('email').addEventListener('input', refreshSubmitState);
+}
+
+function buildOptions(key, q) {
+  const wrap = document.getElementById(q.container);
+  q.opts.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'opt-btn';
+    btn.dataset.value = opt.text;
+    btn.setAttribute('aria-pressed', 'false');
+    btn.innerHTML =
+      `<span class="opt-emoji">${opt.emoji}</span>` +
+      `<span class="opt-label">${opt.text}</span>` +
+      `<span class="opt-check"></span>`;
+    btn.addEventListener('click', () => {
+      wrap.querySelectorAll('.opt-btn').forEach(b => {
+        b.classList.remove('selected');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      btn.classList.add('selected');
+      btn.setAttribute('aria-pressed', 'true');
+      answers[key] = opt.text;
+      document.getElementById(q.next).disabled = false;
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+/* ===== 金額入力（売上・経費） ===== */
+function buildMoney() {
+  const uEl = document.getElementById('uriage');
+  const kEl = document.getElementById('keihi');
+
+  // 売上のチップ
+  const uc = document.getElementById('uriageChips');
+  URIAGE_CHIPS.forEach(v => {
+    const c = document.createElement('button');
+    c.type = 'button'; c.className = 'chip'; c.textContent = v + '万';
+    c.addEventListener('click', () => { uEl.value = v; onMoneyInput('uriage'); });
+    uc.appendChild(c);
+  });
+
+  // 経費は「売上の◯%」で入れられるようにする（経費が分からない人が多い）
+  const kc = document.getElementById('keihiChips');
+  KEIHI_RATIOS.forEach(o => {
+    const c = document.createElement('button');
+    c.type = 'button'; c.className = 'chip'; c.textContent = o.label;
+    c.addEventListener('click', () => {
+      const u = parseMoney('uriage');
+      if (!u) return;
+      kEl.value = Math.round(u * o.r);
+      onMoneyInput('keihi');
+      kc.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+      c.classList.add('on');
+    });
+    kc.appendChild(c);
+  });
+
+  uEl.addEventListener('input', () => onMoneyInput('uriage'));
+  kEl.addEventListener('input', () => {
+    onMoneyInput('keihi');
+    kc.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+  });
+}
+
+// 入力は「万円」単位。全角・カンマを許容する
+function parseMoney(id) {
+  const raw = document.getElementById(id).value
+    .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+    .replace(/[,、\s]/g, '');
+  const n = parseFloat(raw);
+  return (isNaN(n) || n < 0) ? null : n;
+}
+
+function onMoneyInput(id) {
+  const man = parseMoney(id);
+  const yenEl = document.getElementById(id + 'Yen');
+  yenEl.textContent = man !== null ? '= ' + (man * 10000).toLocaleString() + ' 円' : '';
+
+  if (id === 'uriage') {
+    document.getElementById('next4').disabled = (man === null || man <= 0);
+  } else {
+    const u = parseMoney('uriage');
+    const ok = man !== null && u !== null;
+    document.getElementById('next5').disabled = !ok;
+    // 経費が売上を超える場合は注意を出す（赤字。試算自体は可能）
+    if (ok && man > u) {
+      yenEl.textContent += '　⚠️ 経費が売上を超えています';
+    }
+  }
+}
+
+/* ============================================================
+   ナビゲーション
+   ============================================================ */
+function showSlide(id) {
+  document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  current = id;
+  updateProgress();
+  window.scrollTo(0, 0);
+}
+
+function goNext() {
+  const idx = ALL_STEPS.indexOf(current);
+  if (idx < 0 || idx + 1 >= ALL_STEPS.length) return;
+  history.push(current);
+  showSlide(ALL_STEPS[idx + 1]);
+}
+
+function goBack() {
+  const prev = history.pop();
+  if (prev) showSlide(prev);
+}
+
+function updateProgress() {
+  const fill = document.getElementById('progressFill');
+  const text = document.getElementById('progressText');
+  if (current === 's0' || current === 's9') {
+    fill.style.width = (current === 's9' ? 100 : 0) + '%';
+    text.textContent = '';
+    return;
+  }
+  const qSteps = ALL_STEPS.filter(id => id !== 's0');
+  const done = qSteps.indexOf(current) + 1;
+  fill.style.width = (done / qSteps.length * 100) + '%';
+  text.textContent = `${done} / ${qSteps.length}`;
+}
+
+function restart() {
+  history.length = 0;
+  showSlide('s4');   // 金額から再入力（申告状況は変わらないため）
+}
+
+/* ============================================================
+   バリデーション・送信
+   ============================================================ */
+function emailValue() { return document.getElementById('email').value.trim(); }
+function emailValid() {
+  const v = emailValue();
+  return !!v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+function refreshSubmitState() {
+  document.getElementById('next8').disabled = !emailValid();
+  if (emailValid() || emailValue() === '') {
+    document.getElementById('email').classList.remove('input-error');
+    document.getElementById('emailError').classList.remove('show');
+  }
+}
+
+function submitSurvey() {
+  if (!emailValid()) {
+    document.getElementById('email').classList.add('input-error');
+    document.getElementById('emailError').classList.add('show');
+    document.getElementById('email').focus();
+    return;
+  }
+
+  const result = renderResult();   // 先に計算（送信ペイロードにも入れる）
+
+  const payload = {
+    _token: POST_TOKEN,
+    timestamp: new Date().toISOString(),
+    email: emailValue(),
+    q1_method: answers.q1_method || '',
+    q2_submit: answers.q2_submit || '',
+    q3_shinsei: answers.q3_shinsei || '',
+    q4_uriage: String(result.uriage),
+    q5_keihi: String(result.keihi),
+    q6_age: answers.q6_age || '',
+    q7_insurance: answers.q7_insurance || '',
+    est_kicho: result.est.label,
+    tedori_now: String(result.now.tedori),
+    tedori_2027: String(result.after ? result.after.tedori : ''),
+    delta: String(result.after ? result.after.tedori - result.now.tedori : ''),
+    user_agent: navigator.userAgent
+  };
+
+  const loading = document.getElementById('loading');
+  loading.classList.add('show');
+
+  // no-cors のためレスポンスは読めない。到達確認はスプレッドシートの行で行う
+  fetch(GAS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  })
+  .catch(e => console.error('submit error', e))
+  .finally(() => {
+    loading.classList.remove('show');
+    showSlide('s9');
+    animateChart();
+  });
+}
+
+/* === Rive === */
+function initRive(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || typeof rive === 'undefined') return;
+  try {
+    new rive.Rive({ src: 'happy.riv', canvas: canvas, autoplay: true, fit: rive.Fit.Contain });
+  } catch (e) { console.error('rive', e); }
+}
+
+init();
+initRive('snappyIntro');
+window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
+</script>
+<script>
+/* ============================================================
+   結果の描画
+   ------------------------------------------------------------
+   白色（および承認申請書なし）→ 2本棒グラフで 2027年青色75万との差を出す
+   青色の人              → 手取り額のみ。ただし「複式＋書面」は 2027年に
+                            55万→10万へ下がるため警告と e-Tax 化の伸びを出す
+   ============================================================ */
+let chartState = null;
+
+function yen(n) { return n.toLocaleString(); }
+function man(n) { return (Math.round(n / 1000) / 10).toFixed(1); }   // 万円（小数1桁）
+
+function renderResult() {
+  const uriage = Math.round((parseMoney('uriage') || 0) * 10000);
+  const keihi  = Math.round((parseMoney('keihi')  || 0) * 10000);
+  const age40  = answers.q6_age === '40歳以上';
+  const shaho  = answers.q7_insurance === '家族の社会保険の扶養に入っている';
+  const est    = estimate();
+
+  // いまの手取り（2026年分＝今回の申告）
+  const kojoNow = KOJO_TABLE[est.kicho][2026];
+  const now = tedori(uriage, keihi, kojoNow, 2026, age40, shaho);
+
+  // 比較は必ず「2027年分どうし」で行う。
+  // 2026年分は基礎控除の上乗せ（令和8年分限り）があるため、2026年の白色と
+  // 2027年の青色を並べると税制改正の影響が混ざり、申告方法の差が正しく出ない。
+  //   baseline = 2027年に「いまのまま」だった場合の手取り
+  //   after    = 2027年に青色・複式簿記＋e-Tax＋優良な電子帳簿（75万控除）にした場合
+  const baselineKojo = KOJO_TABLE[est.kicho][2027];
+  const baseline = tedori(uriage, keihi, baselineKojo, 2027, age40, shaho);
+  const after = tedori(uriage, keihi, KOJO_YURYO_2027, 2027, age40, shaho);
+
+  let mode;
+  if (est.kicho === KICHO.SHIRO || est.kicho === KICHO.KANI) mode = 'upgrade';
+  else if (est.kicho === KICHO.FUKUSHIKI_P)                  mode = 'risk';
+  else                                                       mode = 'plus10';
+
+  // ---- ヒーロー ----
+  document.getElementById('resAmount').innerHTML =
+    yen(now.tedori) + '<span class="unit">円</span>';
+  document.getElementById('resLabel').textContent =
+    'いまの申告方法での手取り（2026年分・年間）';
+  document.getElementById('resSub').innerHTML =
+    `売上 ${yen(uriage)}円 − 経費 ${yen(keihi)}円 = 事業所得 ${yen(now.jigyo)}円`;
+
+  // 手取りがマイナスになるケース（売上が国民年金・均等割を下回る）を補足する
+  if (now.tedori < 0) {
+    document.getElementById('resSub').innerHTML +=
+      '<br>※ 税・保険料が所得を上回るため、手取りはマイナス表示です。国民年金の免除制度の対象になる可能性があります';
+  }
+
+  // ---- 推定の明示 ----
+  document.getElementById('estBox').innerHTML =
+    `ご回答から、いまは <b>${est.label}</b> と推定しました。<br>` +
+    `<span style="color:#666;font-size:.82rem">理由：${est.reason}</span>` +
+    `<button class="est-link" onclick="goToQ1()">▸ 違う場合はこちらから選び直す</button>`;
+
+  // ---- グラフ ----
+  // 事業所得が青色控除を活かせる水準にない場合、差額が 0 になりグラフが無意味になる。
+  // （課税所得が既にゼロで、控除を増やしても税額が変わらないケース）
+  const noBenefit = (after.tedori - baseline.tedori) <= 0;
+  if (noBenefit) {
+    document.getElementById('chartCard').style.display = 'none';
+    document.getElementById('warnSlot').innerHTML =
+      `<div class="warn-box">
+        <div class="warn-title">ℹ️ いまの所得では、税額の差が出ません</div>
+        <div class="warn-body">
+          事業所得が少なく、すでに所得税がかからない水準のため、
+          青色申告に切り替えても手取りは変わりません。<br>
+          売上がふえてきたタイミングで、あらためて試算してみてください。
+        </div>
+      </div>`;
+    document.getElementById('ctaTitle').innerHTML =
+      '確定申告はスマホだけで完結<br>控除・雑所得のみなら無料です';
+  } else {
+    renderChart(mode, est, now, baseline, after);
+  }
+
+  // ---- 内訳 ----
+  const rows = [
+    ['売上', yen(uriage) + ' 円'],
+    ['経費', '− ' + yen(keihi) + ' 円'],
+    ['青色申告特別控除', now.aoiro > 0 ? '− ' + yen(now.aoiro) + ' 円' : 'なし'],
+    ['所得税・復興特別所得税', '− ' + yen(now.shotokuzei) + ' 円'],
+    ['住民税', '− ' + yen(now.juminzei) + ' 円'],
+    ['個人事業税', now.jigyozei > 0 ? '− ' + yen(now.jigyozei) + ' 円' : '0 円'],
+    [shaho ? '社会保険料（概算）' : '国民健康保険＋国民年金', '− ' + yen(now.shaho) + ' 円']
+  ];
+  document.getElementById('bdTable').innerHTML =
+    rows.map(r => `<tr class="minus"><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('') +
+    `<tr class="total"><td>手取り</td><td>${yen(now.tedori)} 円</td></tr>`;
+
+  // ---- 注記 ----
+  const kokuhoNote = shaho
+    ? '健康保険は家族の扶養前提のため、社会保険料は所得の15%で概算しています（実額は加入先により異なります）'
+    : '国民健康保険は東京23区の料率（所得割 10.67%' + (age40 ? '＋介護分 2.29%' : '') + '／均等割 66,300円' + (age40 ? '＋介護分 16,200円' : '') + '・単身）で計算しています。自治体により変動します';
+  document.getElementById('disclaimer').innerHTML =
+    `<b>試算の前提</b><br>` +
+    `・2026年分は令和8年分の税制（基礎控除の上乗せあり）、2027年分は恒久措置の基礎控除58万円で計算<br>` +
+    `・${kokuhoNote}<br>` +
+    `・個人事業税は第3種5%・事業主控除290万円で計算（青色申告特別控除は事業税には適用されません）<br>` +
+    `・国民年金は年額 215,040円。扶養家族・生命保険料控除・小規模企業共済等の各種控除は含みません<br>` +
+    `・2027年分の75万円控除は「複式簿記＋e-Tax＋優良な電子帳簿等の保存」が要件です<br>` +
+    `・グラフは<b>2027年分どうし</b>の比較です（2026年分は基礎控除の上乗せがあるため、年をまたぐと税制改正の影響が混ざります）<br>` +
+    `・本試算は概算です。実際の税額は個別の状況により異なります。正式な判断は税理士にご相談ください`;
+
+  return { uriage, keihi, est, now, baseline, after, mode };
+}
+
+function goToQ1() {
+  history.length = 0;
+  showSlide('s1');
+}
+
+function renderChart(mode, est, now, baseline, after) {
+  const card = document.getElementById('chartCard');
+  const warnSlot = document.getElementById('warnSlot');
+  warnSlot.innerHTML = '';
+  card.style.display = 'block';
+
+  // 比較は 2027年分どうし。delta = 青色75万にした場合の伸び
+  const delta = after.tedori - baseline.tedori;
+
+  if (mode === 'upgrade') {
+    // 白色・簡易簿記 → 青色75万（依頼の本命ケース）
+    document.getElementById('chartTitle').innerHTML =
+      '📈 青色申告に切り替えると<span style="font-size:.78rem;font-weight:500;color:#888;margin-left:4px">（2027年分で比較）</span>';
+    document.getElementById('barNowLabel').innerHTML =
+      `<b>そのまま</b><br>${est.kicho === KICHO.SHIRO ? '白色申告' : '簡易簿記<br>（10万円控除）'}`;
+    document.getElementById('barAfterLabel').innerHTML =
+      '<b>青色申告</b><br>複式簿記＋e-Tax<br>（75万円控除）';
+    document.getElementById('deltaLead').textContent = '手取りはこれだけ増えます';
+    document.getElementById('deltaAmount').textContent = '＋' + yen(delta) + ' 円 / 年';
+    document.getElementById('deltaNote').textContent =
+      '売上・経費が同じでも、申告方法を変えるだけで増えます';
+    document.getElementById('ctaTitle').innerHTML =
+      '複式簿記も、e-Taxの提出も<br>スマホだけで完結します';
+
+  } else if (mode === 'risk') {
+    // 複式＋書面：2027年分から 55万→10万 に下がる。まず警告を出す
+    const down = now.tedori - baseline.tedori;   // 2026年(55万) → 2027年(10万) の減少額（正の値）
+    warnSlot.innerHTML =
+      `<div class="warn-box">
+        <div class="warn-title">⚠️ 2027年分から控除が 55万円 → 10万円 に下がります</div>
+        <div class="warn-body">
+          いまは紙で提出されているため、2027年分以降は控除が <b>45万円</b> 減ります。
+          何もしないと手取りは <b>${yen(down)} 円 減る</b>見込みです。<br>
+          e-Tax での提出に切り替えれば、控除を <b>75万円</b> まで増やせます。
+        </div>
+      </div>`;
+    document.getElementById('chartTitle').innerHTML =
+      '📈 e-Taxに切り替えると<span style="font-size:.78rem;font-weight:500;color:#888;margin-left:4px">（2027年分で比較）</span>';
+    document.getElementById('barNowLabel').innerHTML =
+      '<b>そのまま</b><br>書面申告<br>（10万円控除）';
+    document.getElementById('barAfterLabel').innerHTML =
+      '<b>e-Taxに変更</b><br>（75万円控除）';
+    document.getElementById('deltaLead').textContent = 'e-Tax化で取り戻せる手取り';
+    document.getElementById('deltaAmount').textContent = '＋' + yen(delta) + ' 円 / 年';
+    document.getElementById('deltaNote').textContent = '2027年分どうしの比較';
+    document.getElementById('ctaTitle').innerHTML =
+      'アプリならe-Tax提出まで完結<br>控除75万円の要件も満たせます';
+
+  } else {
+    // 複式＋e-Tax（65万）→ 優良な電子帳簿で 75万（＋10万）
+    document.getElementById('chartTitle').innerHTML =
+      '📈 優良な電子帳簿にすると<span style="font-size:.78rem;font-weight:500;color:#888;margin-left:4px">（2027年分で比較）</span>';
+    document.getElementById('barNowLabel').innerHTML =
+      '<b>そのまま</b><br>65万円控除';
+    document.getElementById('barAfterLabel').innerHTML =
+      '<b>優良な電子帳簿</b><br>75万円控除';
+    document.getElementById('deltaLead').textContent = '控除が10万円ふえて、手取りは';
+    document.getElementById('deltaAmount').textContent = '＋' + yen(delta) + ' 円 / 年';
+    document.getElementById('deltaNote').textContent =
+      '「優良な電子帳簿」またはデジタルシームレス保存の要件を満たした場合';
+    document.getElementById('ctaTitle').innerHTML =
+      'タックスナップは優良な電子帳簿の<br>要件に対応予定です';
+  }
+
+  document.getElementById('barNowVal').textContent   = man(baseline.tedori) + '万円';
+  document.getElementById('barAfterVal').textContent = man(after.tedori) + '万円';
+  chartState = { now: baseline.tedori, after: after.tedori };
+}
+
+// 棒の高さは 0 からではなく「小さい方を基準」にすると差が誇張されるため、
+// 0 基準の実比率で描く（差が小さく見えても事実に忠実にする）
+function animateChart() {
+  if (!chartState) return;
+  const max = Math.max(chartState.now, chartState.after, 1);
+  const H = 150;   // 最大バー高さ px
+  const h = v => Math.max(4, Math.round(Math.max(0, v) / max * H));
+  requestAnimationFrame(() => {
+    document.getElementById('barNow').style.height   = h(chartState.now) + 'px';
+    document.getElementById('barAfter').style.height = h(chartState.after) + 'px';
+  });
+}
+</script>
+</body>
+</html>
