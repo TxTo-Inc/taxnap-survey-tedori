@@ -50,10 +50,10 @@ var FEEDBACK_COLUMNS = [
   { key: 'company',       label: '会社名' },
   { key: 'company_id',    label: '会社コード' },
   { key: 'email',         label: 'メールアドレス' },
-  { key: 'fb_recommend',    label: 'Q1 美容師に案内できそうか' },
-  { key: 'fb_unclear',      label: 'Q2 分かりにくかった点(複数)' },
-  { key: 'fb_unclear_free', label: 'Q2 その他(自由記述)' },
-  { key: 'fb_satisfaction', label: 'Q3 説明会の満足度' },
+  { key: 'fb_recommend',    label: 'Q1 美容師に案内したいか' },
+  { key: 'fb_understand',   label: 'Q2 美容師が理解できそうか' },
+  { key: 'fb_unclear',      label: 'Q3 分かりにくかった点(複数)' },
+  { key: 'fb_unclear_free', label: 'Q3 その他(自由記述)' },
   { key: 'user_agent',    label: 'ブラウザ情報' }
 ];
 

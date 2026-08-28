@@ -430,14 +430,14 @@ textarea.text-input{resize:vertical;min-height:76px;display:block}
       <div class="mgr-q">Q1. この内容を、美容師の皆さまにご案内いただけそうですか？</div>
       <div class="options mgr-opts" id="fbOpts1"></div>
 
-      <div class="mgr-q">Q2. 分かりにくかった点があれば<span class="mgr-opt-tag">複数選択可・任意</span></div>
+      <div class="mgr-q">Q2. 美容師の皆さまに、内容をご理解いただけそうですか？</div>
       <div class="options mgr-opts" id="fbOpts2"></div>
+
+      <div class="mgr-q">Q3. 分かりにくかった点があれば<span class="mgr-opt-tag">複数選択可・任意</span></div>
+      <div class="options mgr-opts" id="fbOpts3"></div>
       <div class="other-wrap" id="fbOtherWrap">
         <textarea class="text-input" id="fbOther" rows="2" placeholder="具体的にお聞かせください"></textarea>
       </div>
-
-      <div class="mgr-q">Q3. 本日の説明会の満足度</div>
-      <div class="options mgr-opts" id="fbOpts3"></div>
 
       <button class="btn-next" id="fbSubmit" disabled onclick="submitFeedback()">感想を送信する</button>
       <div class="mgr-done" id="fbDone" style="display:none">✅ ありがとうございました。送信しました</div>
@@ -684,19 +684,24 @@ const QUESTIONS = {
 };
 
 // MGR向け感想の選択肢（?r=mgr のときだけ使う）
-// Q1は「理解できたか × 案内したいか」の2軸を1問に畳んでいる。
-// どちらに問題があるかで打ち手が変わるため、選択肢側で軸を切り分けている
-//   ② = 提案内容の見直し / ③④ = 説明のしかたの見直し
+// Q1=案内の意欲 / Q2=美容師の理解度の見立て / Q3=つまずき箇所 の3段構え。
+// Q1で意欲、Q2で理解と軸を分けているので、どちらに問題があるかで打ち手が変わる
+//   Q1が低い → 提案内容の見直し / Q2が低い → 説明・資料の見直し
 const FEEDBACK = {
   fb_recommend: { container:'fbOpts1', opts:[
-    {emoji:'🙆', text:'内容を理解できた。積極的に案内したい'},
-    {emoji:'🤔', text:'内容は理解できたが、案内は難しそう',
-                 label:'内容は理解できたが、案内は難しそう', sub:'美容師には響かなそう／伝える自信がない'},
-    {emoji:'💭', text:'案内したい気持ちはあるが、内容をあまり理解できなかった'},
-    {emoji:'😥', text:'あまり理解できず、案内したいとも思わなかった'}
+    {emoji:'🔥', text:'積極的に案内したい'},
+    {emoji:'🙆', text:'案内したい'},
+    {emoji:'🤔', text:'どちらともいえない'},
+    {emoji:'🙅', text:'案内は難しそう'}
   ]},
-  // 複数選択。該当なしは排他選択肢にして「その他」と同時に選ばれないようにする
-  fb_unclear: { container:'fbOpts2', multi:true, opts:[
+  fb_understand: { container:'fbOpts2', opts:[
+    {emoji:'😄', text:'問題なく理解いただけそう'},
+    {emoji:'🙂', text:'だいたい理解いただけそう'},
+    {emoji:'😐', text:'一部は難しそう'},
+    {emoji:'😥', text:'理解いただくのは難しそう'}
+  ]},
+  // 複数選択。「特になし」は排他選択にして「その他」と同時に選ばれないようにする
+  fb_unclear: { container:'fbOpts3', multi:true, opts:[
     {emoji:'💰', text:'売上・経費の入力'},
     {emoji:'📗', text:'白色と青色のちがい'},
     {emoji:'📅', text:'2027年に控除が変わる話'},
@@ -704,17 +709,10 @@ const FEEDBACK = {
     {emoji:'📱', text:'e-Tax・複式簿記などの用語'},
     {emoji:'✏️', text:'その他', isOther:true},
     {emoji:'✅', text:'特になし', exclusive:true}
-  ]},
-  fb_satisfaction: { container:'fbOpts3', opts:[
-    {emoji:'😄', text:'とても満足'},
-    {emoji:'🙂', text:'満足'},
-    {emoji:'😐', text:'ふつう'},
-    {emoji:'😕', text:'やや不満'},
-    {emoji:'😞', text:'不満'}
   ]}
 };
 
-// 金額入力のクイック選択チップ// 金額入力のクイック選択チップ
+// 金額入力のクイック選択チップ// 金額入力のクイック選択チップ// 金額入力のクイック選択チップ
 const URIAGE_CHIPS = [200, 300, 400, 500, 700, 1000];
 const KEIHI_RATIOS = [
   {label:'売上の10%', r:0.10}, {label:'20%', r:0.20},
@@ -825,10 +823,10 @@ function toggleFeedbackMulti(key, q, wrap, btn, opt) {
   if (!otherOn) document.getElementById('fbOther').value = '';
 }
 
-// Q1（案内できそうか）と Q3（満足度）が選ばれたら送信可能にする
+// Q1（案内の意欲）と Q2（理解度の見立て）が選ばれたら送信可能にする（Q3は任意）
 function refreshFeedbackState() {
   document.getElementById('fbSubmit').disabled =
-    !(feedback.fb_recommend && feedback.fb_satisfaction);
+    !(feedback.fb_recommend && feedback.fb_understand);
 }
 
 // 感想は本編とは別レコードで送る（試算の回答は結果表示時に送信済みのため）
@@ -844,9 +842,9 @@ function submitFeedback() {
     role: 'マネージャー',
     email: emailValue(),
     fb_recommend:    feedback.fb_recommend || '',
+    fb_understand:   feedback.fb_understand || '',
     fb_unclear:      (feedback.fb_unclear || []).join(', '),
     fb_unclear_free: document.getElementById('fbOther').value.trim(),
-    fb_satisfaction: feedback.fb_satisfaction || '',
     user_agent: navigator.userAgent
   };
   fetch(GAS_URL, {
