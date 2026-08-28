@@ -394,35 +394,9 @@ textarea.text-input{resize:vertical;min-height:76px;display:block}
       <div class="chart2-caveat">※ 差がわかりやすいよう、縦軸は0円からではなく拡大して表示しています</div>
     </div>
 
-    <!-- ③ いまの手取り -->
-    <div class="result-hero">
-      <div class="result-kicker" id="resKicker">あなたの手取り</div>
-      <div class="result-label" id="resLabel">いまの申告方法での手取り（2026年分・年間）</div>
-      <div class="result-amount" id="resAmount">—</div>
-      <div class="result-sub" id="resSub"></div>
-      <div class="est-caveat">モデル前提による概算です。正式な税額の判断は税理士にご相談ください</div>
-    </div>
-
     <div id="warnSlot"></div>
 
-    <div class="card">
-      <div class="card-title">🔍 ご回答からの推定</div>
-      <div class="est-box" id="estBox"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">📋 お金の流れ（いまの申告方法）</div>
-      <div id="bdFlow"></div>
-    </div>
-
-    <div class="app-cta">
-      <div class="app-cta-title" id="ctaTitle">スマホだけで、青色申告が完結します</div>
-      <a class="app-cta-btn" href="https://taxnap.co.jp/" target="_blank" rel="noopener">タックスナップを見る →</a>
-    </div>
-
-    <div class="disclaimer" id="disclaimer"></div>
-
-    <!-- MGR向け感想（?r=mgr のときだけ表示）。試算を体験した直後に聞く -->
+    <!-- ④ MGR向け感想（?r=mgr のときだけ表示）。グラフ直後＝スクロール2回目で目に入る位置 -->
     <div class="card mgr-fb" id="mgrFb" style="display:none">
       <div class="card-title">💬 マネージャーの皆さまへ</div>
       <p class="mgr-lead">後日、美容師の皆さまにこのアンケートをご案内する予定です。<br>お気づきの点をお聞かせください。</p>
@@ -442,6 +416,32 @@ textarea.text-input{resize:vertical;min-height:76px;display:block}
       <button class="btn-next" id="fbSubmit" disabled onclick="submitFeedback()">感想を送信する</button>
       <div class="mgr-done" id="fbDone" style="display:none">✅ ありがとうございました。送信しました</div>
     </div>
+
+    <!-- ⑤ いまの手取り以下（詳細）。MGRの動線を優先して感想の下に置く -->
+    <div class="result-hero">
+      <div class="result-kicker" id="resKicker">あなたの手取り</div>
+      <div class="result-label" id="resLabel">いまの申告方法での手取り（2026年分・年間）</div>
+      <div class="result-amount" id="resAmount">—</div>
+      <div class="result-sub" id="resSub"></div>
+      <div class="est-caveat">モデル前提による概算です。正式な税額の判断は税理士にご相談ください</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔍 ご回答からの推定</div>
+      <div class="est-box" id="estBox"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 お金の流れ（いまの申告方法）</div>
+      <div id="bdFlow"></div>
+    </div>
+
+    <div class="app-cta">
+      <div class="app-cta-title" id="ctaTitle">スマホだけで、青色申告が完結します</div>
+      <a class="app-cta-btn" href="https://taxnap.co.jp/" target="_blank" rel="noopener">タックスナップを見る →</a>
+    </div>
+
+    <div class="disclaimer" id="disclaimer"></div>
 
     <button class="btn-back" onclick="restart()">↻ 条件を変えて試算する</button>
   </div>
