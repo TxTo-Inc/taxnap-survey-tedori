@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配布リンク作成 | 手取りシミュレーション</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--brand:#27BA74;--brand-light:#e8f8ef;--brand-dark:#1e9a5e;--bg:#f8faf9;--text:#1a1a1a;--sub:#666}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);padding:28px 18px 60px}
+.wrap{max-width:620px;margin:0 auto}
+h1{font-size:1.35rem;font-weight:800;margin-bottom:6px}
+.lead{font-size:.88rem;color:var(--sub);line-height:1.75;margin-bottom:22px}
+.card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 8px rgba(0,0,0,.05);margin-bottom:16px}
+label{display:block;font-size:.85rem;font-weight:700;margin-bottom:6px}
+.hint{font-size:.76rem;color:var(--sub);font-weight:400;line-height:1.6;margin-bottom:7px}
+input{width:100%;padding:12px 14px;border:2px solid #e5e7eb;border-radius:10px;font-size:.95rem;font-family:inherit;margin-bottom:16px}
+input:focus{outline:none;border-color:var(--brand)}
+.out{background:#f6fbf8;border:1.5px solid #cdebda;border-radius:12px;padding:14px;margin-bottom:10px}
+.out-label{font-size:.8rem;font-weight:700;color:var(--brand-dark);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.out-url{font-size:.8rem;color:#1a1a1a;word-break:break-all;line-height:1.65;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#fff;border-radius:8px;padding:10px;border:1px solid #e3ece7}
+.btn{margin-top:9px;width:100%;padding:11px;background:var(--brand);color:#fff;border:none;border-radius:9px;font-size:.88rem;font-weight:700;font-family:inherit;cursor:pointer}
+.btn:active{background:var(--brand-dark)}
+.btn.copied{background:#15803d}
+.note{font-size:.78rem;color:var(--sub);line-height:1.8;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px}
+.note b{color:var(--text)}
+code{background:#eef1f0;padding:1px 6px;border-radius:4px;font-size:.9em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>配布リンク作成</h1>
+  <p class="lead">提携先ごとの配布リンクを作ります。会社名・職種を入れるだけで、
+    マネージャー向け／スタッフ向けの2本が出ます。コードの変更は不要です。</p>
+
+  <div class="card">
+    <label for="name">会社名</label>
+    <div class="hint">資料や集計に表示される名前。例：ハコベル株式会社</div>
+    <input id="name" placeholder="ハコベル株式会社" autocomplete="off">
+
+    <label for="code">会社コード</label>
+    <div class="hint">集計用の短い英数字。半角・スペースなし。例：hacobell</div>
+    <input id="code" placeholder="hacobell" autocomplete="off">
+
+    <label for="job">職種の呼び名</label>
+    <div class="hint">設問の「◯◯の皆さま」に入ります。例：ドライバー／美容師／一人親方</div>
+    <input id="job" placeholder="ドライバー" autocomplete="off">
+  </div>
+
+  <div class="card">
+    <div class="out">
+      <div class="out-label">👔 マネージャー向け（感想欄あり）</div>
+      <div class="out-url" id="urlMgr">—</div>
+      <button class="btn" data-t="urlMgr">リンクをコピー</button>
+    </div>
+    <div class="out">
+      <div class="out-label">💇 スタッフ向け（本番配布用）</div>
+      <div class="out-url" id="urlStaff">—</div>
+      <button class="btn" data-t="urlStaff">リンクをコピー</button>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>使い方</b><br>
+    ・説明会では<b>マネージャー向け</b>を案内し、後日<b>スタッフ向け</b>を配布します<br>
+    ・回答は会社コード・職種つきで1つのスプレッドシートに集まるので、会社ごとに絞って集計できます<br>
+    ・会社コードは集計キーです。<b>一度配ったら変えない</b>でください（別の会社として集計されます）
+  </div>
+</div>
+
+<script>
+const BASE = location.href.replace(/link\.html.*$/, '');
+const $ = id => document.getElementById(id);
+
+function build() {
+  const name = $('name').value.trim();
+  const code = $('code').value.trim().toLowerCase().replace(/\s+/g, '');
+  const job  = $('job').value.trim();
+  if (!code) { $('urlMgr').textContent = $('urlStaff').textContent = '会社コードを入力してください'; return; }
+
+  const q = extra => {
+    const p = new URLSearchParams();
+    p.set('c', code);
+    if (name) p.set('n', name);
+    if (job)  p.set('j', job);
+    Object.entries(extra).forEach(([k, v]) => p.set(k, v));
+    // %E3.. の羅列だと目視確認できないので、日本語部分は読める形に戻す
+    return decodeURI(BASE + '?' + p.toString().replace(/\+/g, '%20'));
+  };
+  $('urlMgr').textContent   = q({ r: 'mgr' });
+  $('urlStaff').textContent = q({});
+}
+
+['name','code','job'].forEach(id => $(id).addEventListener('input', build));
+
+document.querySelectorAll('.btn').forEach(b => {
+  b.addEventListener('click', async () => {
+    const t = $(b.dataset.t).textContent;
+    if (!t || t.startsWith('—') || t.startsWith('会社コード')) return;
+    try { await navigator.clipboard.writeText(t); } catch (e) { return; }
+    const old = b.textContent;
+    b.textContent = '✓ コピーしました'; b.classList.add('copied');
+    setTimeout(() => { b.textContent = old; b.classList.remove('copied'); }, 1600);
+  });
+});
+
+build();
+</script>
+</body>
+</html>

@@ -399,12 +399,12 @@ textarea.text-input{resize:vertical;min-height:76px;display:block}
     <!-- ④ MGR向け感想（?r=mgr のときだけ表示）。グラフ直後＝スクロール2回目で目に入る位置 -->
     <div class="card mgr-fb" id="mgrFb" style="display:none">
       <div class="card-title">💬 マネージャーの皆さまへ</div>
-      <p class="mgr-lead">後日、美容師の皆さまにこのアンケートをご案内する予定です。<br>お気づきの点をお聞かせください。</p>
+      <p class="mgr-lead" id="mgrLead"></p>
 
-      <div class="mgr-q">Q1. この内容を、美容師の皆さまにご案内いただけそうですか？</div>
+      <div class="mgr-q" id="mgrQ1"></div>
       <div class="options mgr-opts" id="fbOpts1"></div>
 
-      <div class="mgr-q">Q2. 美容師の皆さまに、内容をご理解いただけそうですか？</div>
+      <div class="mgr-q" id="mgrQ2"></div>
       <div class="options mgr-opts" id="fbOpts2"></div>
 
       <div class="mgr-q">Q3. 分かりにくかった点があれば<span class="mgr-opt-tag">複数選択可・任意</span></div>
@@ -455,14 +455,22 @@ const GAS_URL = 'https://script.google.com/macros/s/PASTE_YOUR_DEPLOY_ID/exec';
 const POST_TOKEN = 'PASTE_YOUR_TOKEN';
 
 /* ============================================================
-   配布先の識別（URLパラメータ）
+   配布パラメータ（URLで会社・対象者・職種を渡す）
    ------------------------------------------------------------
-   ?c=<会社コード>&r=<対象者>  例: ?c=eclart&r=mgr
-     c … 提携先の会社コード。未指定なら 'direct'（自社直配布）
-     r … 'mgr'（マネージャー向け）/ 'staff'（スタッフ向け・既定）
+   ?c=<会社コード>&r=<対象者>&j=<職種>
+     例: ?c=eclart&r=mgr&j=美容師
+         ?c=hacobell&r=mgr&j=ドライバー
+     c … 提携先の会社コード（集計キー）。未登録でもそのまま記録するので、
+         新しい提携先でもコードを編集せずに配布できる
+     n … 会社の表示名。省略時は COMPANIES の登録名、無ければ c の値
+     r … 'mgr'（マネージャー向け・感想欄あり）/ それ以外はスタッフ向け
+     j … 職種の呼び名。設問中の「◯◯の皆さま」に入る。未指定なら中立語
+
+   新規の提携先はコード変更なしで配布できる:
+     ?c=hacobell&n=ハコベル株式会社&r=mgr&j=ドライバー
+
    会社名を回答者に入力させると表記揺れ（ECLART/エクラート/株式会社〜）が
    出て集計時に名寄せが要るため、既知の情報はURLで渡す。
-   新しい提携先は COMPANIES に1行足すだけで増やせる（HTMLの複製はしない）。
    ============================================================ */
 const COMPANIES = {
   eclart:  '株式会社ECLART',
@@ -471,9 +479,13 @@ const COMPANIES = {
   direct:  '直接配布'
 };
 
-const params    = new URLSearchParams(location.search);
+const params     = new URLSearchParams(location.search);
 const COMPANY_ID = (params.get('c') || 'direct').toLowerCase();
-const COMPANY    = COMPANIES[COMPANY_ID] || COMPANY_ID;   // 未登録コードもそのまま記録
+// 表示名は ?n= が最優先。次に COMPANIES の登録名、最後にコードそのまま
+const COMPANY    = (params.get('n') || '').trim()
+                   || COMPANIES[COMPANY_ID] || params.get('c') || '直接配布';
+// 職種名。業種依存の文言をURLで差し替える（未指定は中立語にフォールバック）
+const JOB        = (params.get('j') || '').trim() || 'スタッフ';
 const IS_MGR     = (params.get('r') || '').toLowerCase() === 'mgr';
 
 /* ============================================================
@@ -684,7 +696,7 @@ const QUESTIONS = {
 };
 
 // MGR向け感想の選択肢（?r=mgr のときだけ使う）
-// Q1=案内の意欲 / Q2=美容師の理解度の見立て / Q3=つまずき箇所 の3段構え。
+// Q1=案内の意欲 / Q2=対象者（?j=の職種）の理解度の見立て / Q3=つまずき箇所 の3段構え。
 // Q1で意欲、Q2で理解と軸を分けているので、どちらに問題があるかで打ち手が変わる
 //   Q1が低い → 提案内容の見直し / Q2が低い → 説明・資料の見直し
 const FEEDBACK = {
@@ -727,6 +739,13 @@ const history = [];
    ============================================================ */
 function init() {
   Object.entries(QUESTIONS).forEach(([key, q]) => buildOptions(key, q));
+  // 職種名（?j=）を設問文に差し込む。業種が変わってもHTMLを複製せず使い回せる
+  document.getElementById('mgrLead').innerHTML =
+    `後日、${JOB}の皆さまにこのアンケートをご案内する予定です。<br>お気づきの点をお聞かせください。`;
+  document.getElementById('mgrQ1').textContent =
+    `Q1. この内容を、${JOB}の皆さまにご案内いただけそうですか？`;
+  document.getElementById('mgrQ2').textContent =
+    `Q2. ${JOB}の皆さまに、内容をご理解いただけそうですか？`;
   Object.entries(FEEDBACK).forEach(([key, q]) => buildFeedbackOptions(key, q));
   buildMoney();
   showSlide('s0');
@@ -837,6 +856,7 @@ function submitFeedback() {
     timestamp: new Date().toISOString(),
     company: COMPANY,
     company_id: COMPANY_ID,
+    job:        JOB,
     role: 'マネージャー',
     email: emailValue(),
     fb_recommend:    feedback.fb_recommend || '',
@@ -995,6 +1015,7 @@ function submitSurvey() {
     timestamp: new Date().toISOString(),
     company: COMPANY,
     company_id: COMPANY_ID,
+    job:        JOB,
     role: IS_MGR ? 'マネージャー' : 'スタッフ',
     email: emailValue(),
     q1_method: answers.q1_method || '',
